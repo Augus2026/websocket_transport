@@ -45,7 +45,8 @@ class FileDownloader {
             lastUpdateTime: null,
             lastReceivedBytes: 0,
             speed: 0,
-            duration: 0
+            duration: 0,
+            useBlob: true // 使用 Blob 方式下载
         };
 
         this.activeDownloads.set(finalFileId, downloadInfo);
@@ -98,6 +99,11 @@ class FileDownloader {
             // 初始化 StreamSaver（使用 Blob 方式下载，不依赖 StreamSaver）
             downloadInfo.useBlob = true;
 
+            // 更新初始进度
+            if (this.onProgress) {
+                this.onProgress(fileId, downloadInfo);
+            }
+
         } else if (message.op === 'download_chunk') {
             // 接收到数据块
             const index = message.index;
@@ -132,6 +138,7 @@ class FileDownloader {
                     }
                 }
 
+                // 更新进度显示
                 if (this.onProgress) {
                     this.onProgress(fileId, downloadInfo);
                 }
@@ -232,7 +239,7 @@ class FileDownloader {
 
     // 生成文件ID
     generateFileId() {
-        return 'download_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        return 'download_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
     }
 
     // 取消下载

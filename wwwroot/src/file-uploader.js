@@ -145,7 +145,7 @@ class FileUploader {
 
     // 生成文件ID
     generateFileId() {
-        return 'upload_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        return 'upload_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
     }
 
     // 延迟函数

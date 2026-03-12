@@ -73,7 +73,7 @@ class WebSocketClient {
             }
         } catch (error) {
             // 如果不是 JSON，则是二进制数据
-            console.log('收到二进制数据:', data);
+            // console.log('收到二进制数据:', data);
         }
     }
 
