@@ -102,13 +102,13 @@ class App {
     uploadFile(file) {
         const fileId = this.uploader.generateFileId();
         this.ui.createProgressItem(fileId, file.name, 'upload');
-        this.uploader.uploadFile(file);
+        this.uploader.uploadFile(file, fileId);
     }
 
     downloadFile(filename) {
         const fileId = this.downloader.generateFileId();
         this.ui.createProgressItem(fileId, filename, 'download');
-        this.downloader.downloadFile(filename);
+        this.downloader.downloadFile(filename, fileId);
     }
 
     onUploadProgress(fileId, info) {
@@ -126,7 +126,9 @@ class App {
             info.progress,
             status,
             info.uploadedBytes,
-            info.file.size
+            info.file.size,
+            info.speed,
+            info.duration
         );
 
         // 5秒后移除已完成的进度条
@@ -163,7 +165,9 @@ class App {
             info.progress,
             status,
             info.receivedBytes,
-            info.totalSize
+            info.totalSize,
+            info.speed,
+            info.duration
         );
 
         // 5秒后移除已完成的进度条

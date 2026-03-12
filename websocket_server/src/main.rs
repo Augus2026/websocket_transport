@@ -16,7 +16,7 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
 };
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 use tracing_subscriber;
 
 // 服务器配置
@@ -225,7 +225,7 @@ async fn handle_message(
                         size,
                     } => {
                         // 等待下一个消息（二进制数据）
-                        info!("接收文件块: {} (索引: {}, 大小: {})", filename, index, size);
+                        debug!("接收文件块: {} (索引: {}, 大小: {})", filename, index, size);
                     }
 
                     ClientMessage::UploadEnd { filename, file_id } => {
@@ -393,7 +393,7 @@ async fn handle_message(
                     upload.chunks.insert(index, data.to_vec());
                     upload.received_chunks += 1;
                     upload.received_size += data.len() as u64;
-                    info!(
+                    debug!(
                         "接收块: {}/{} (大小: {})",
                         upload.received_chunks,
                         upload.total_chunks,
@@ -560,7 +560,7 @@ fn format_size(bytes: u64) -> String {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // 初始化日志
+    // 初始化日志 - 设置为 INFO 级别，调试信息使用 DEBUG 级别
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();

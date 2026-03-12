@@ -22,30 +22,35 @@ class FileDownloader {
     }
 
     // 请求下载文件
-    async downloadFile(filename) {
-        const fileId = this.generateFileId();
+    async downloadFile(filename, fileId = null) {
+        const finalFileId = fileId || this.generateFileId();
 
         console.log(`请求下载: ${filename}`);
 
         const downloadInfo = {
             filename: filename,
-            file_id: fileId,
+            file_id: finalFileId,
             total_chunks: 0,
             receivedChunks: 0,
             receivedBytes: 0,
             progress: 0,
             status: 'requesting',
-            chunks: []
+            chunks: [],
+            startTime: null,
+            lastUpdateTime: null,
+            lastReceivedBytes: 0,
+            speed: 0,
+            duration: 0
         };
 
-        this.activeDownloads.set(fileId, downloadInfo);
+        this.activeDownloads.set(finalFileId, downloadInfo);
 
         try {
             // 发送下载请求
             const requestMessage = {
                 op: 'download_request',
                 filename: filename,
-                fileId: fileId
+                fileId: finalFileId
             };
 
             this.wsClient.send(JSON.stringify(requestMessage));
@@ -55,10 +60,10 @@ class FileDownloader {
             downloadInfo.status = 'error';
             downloadInfo.error = error.message;
             if (this.onProgress) {
-                this.onProgress(fileId, downloadInfo);
+                this.onProgress(finalFileId, downloadInfo);
             }
             if (this.onError) {
-                this.onError(fileId, error);
+                this.onError(finalFileId, error);
             }
         }
     }
@@ -79,6 +84,11 @@ class FileDownloader {
             downloadInfo.totalSize = message.size || 0;
             downloadInfo.status = 'downloading';
             downloadInfo.chunks = new Array(downloadInfo.totalChunks);
+
+            // 初始化时间
+            downloadInfo.startTime = Date.now();
+            downloadInfo.lastUpdateTime = Date.now();
+            downloadInfo.lastReceivedBytes = 0;
 
             // 初始化 StreamSaver
             this.initStreamSaver().then(success => {
@@ -103,6 +113,22 @@ class FileDownloader {
                     downloadInfo.progress = Math.round((downloadInfo.receivedBytes / downloadInfo.totalSize) * 100);
                 } else {
                     downloadInfo.progress = Math.round((downloadInfo.receivedChunks / downloadInfo.totalChunks) * 100);
+                }
+
+                // 计算速度和时长
+                const now = Date.now();
+                if (downloadInfo.startTime) {
+                    const elapsedTime = (now - downloadInfo.startTime) / 1000; // 秒
+                    downloadInfo.duration = elapsedTime;
+
+                    // 计算速度（每秒更新一次）
+                    if (now - downloadInfo.lastUpdateTime >= 1000) {
+                        const timeDiff = (now - downloadInfo.lastUpdateTime) / 1000;
+                        const bytesDiff = downloadInfo.receivedBytes - downloadInfo.lastReceivedBytes;
+                        downloadInfo.speed = (bytesDiff * 8) / (timeDiff * 1000000); // Mbps
+                        downloadInfo.lastUpdateTime = now;
+                        downloadInfo.lastReceivedBytes = downloadInfo.receivedBytes;
+                    }
                 }
 
                 if (this.onProgress) {

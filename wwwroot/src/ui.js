@@ -92,6 +92,10 @@ class UIManager {
                 <span class="progress-text">0%</span>
                 <span class="status-text">准备中...</span>
             </div>
+            <div class="progress-speed-time">
+                <span class="speed">⚡ 0 Mbps</span>
+                <span class="time">⏱️ 0s</span>
+            </div>
         `;
 
         // 关闭按钮
@@ -108,7 +112,7 @@ class UIManager {
         return item;
     }
 
-    updateProgress(fileId, progress, status, transferredSize = null, totalSize = null) {
+    updateProgress(fileId, progress, status, transferredSize = null, totalSize = null, speed = null, duration = null) {
         const item = this.progressItems.get(fileId);
         if (!item) {
             return;
@@ -117,6 +121,8 @@ class UIManager {
         const progressBar = item.querySelector('.progress-bar-inner');
         const progressText = item.querySelector('.progress-text');
         const statusText = item.querySelector('.status-text');
+        const speedElement = item.querySelector('.speed');
+        const timeElement = item.querySelector('.time');
 
         progressBar.style.width = `${progress}%`;
         progressText.textContent = `${progress}%`;
@@ -129,6 +135,14 @@ class UIManager {
         }
 
         statusText.textContent = statusMessage;
+
+        // 更新速度和时长
+        if (speed !== null) {
+            speedElement.textContent = `⚡ ${speed.toFixed(2)} Mbps`;
+        }
+        if (duration !== null) {
+            timeElement.textContent = `⏱️ ${this.formatDuration(duration)}`;
+        }
 
         // 根据状态添加样式
         const progressInfo = item.querySelector('.progress-info');
@@ -155,6 +169,20 @@ class UIManager {
         const sizes = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    formatDuration(seconds) {
+        if (seconds < 60) {
+            return `${Math.round(seconds)}s`;
+        } else if (seconds < 3600) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.round(seconds % 60);
+            return `${minutes}m ${remainingSeconds}s`;
+        } else {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            return `${hours}h ${minutes}m`;
+        }
     }
 
     setFileSelectHandler(handler) {

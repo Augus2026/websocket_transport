@@ -10,8 +10,8 @@ class FileUploader {
     }
 
     // 上传文件
-    async uploadFile(file) {
-        const fileId = this.generateFileId();
+    async uploadFile(file, fileId = null) {
+        const finalFileId = fileId || this.generateFileId();
         const fileSize = file.size;
         const totalChunks = Math.ceil(fileSize / this.chunkSize);
 
@@ -19,15 +19,20 @@ class FileUploader {
 
         const uploadInfo = {
             file: file,
-            fileId: fileId,
+            fileId: finalFileId,
             totalChunks: totalChunks,
             uploadedChunks: 0,
             uploadedBytes: 0,
             progress: 0,
-            status: 'uploading'
+            status: 'uploading',
+            startTime: Date.now(),
+            lastUpdateTime: Date.now(),
+            lastUploadedBytes: 0,
+            speed: 0,
+            duration: 0
         };
 
-        this.activeUploads.set(fileId, uploadInfo);
+        this.activeUploads.set(finalFileId, uploadInfo);
 
         try {
             // 发送开始上传消息
@@ -36,19 +41,19 @@ class FileUploader {
                 filename: file.name,
                 size: fileSize,
                 chunks: totalChunks,
-                file_id: fileId
+                file_id: finalFileId
             };
 
             this.wsClient.send(JSON.stringify(startMessage));
 
             // 读取并发送文件块
-            await this.sendFileChunks(file, fileId, totalChunks);
+            await this.sendFileChunks(file, finalFileId, totalChunks);
 
             // 发送完成消息
             const endMessage = {
                 op: 'upload_end',
                 filename: file.name,
-                file_id: fileId
+                file_id: finalFileId
             };
 
             this.wsClient.send(JSON.stringify(endMessage));
@@ -56,10 +61,10 @@ class FileUploader {
             uploadInfo.status = 'completed';
             uploadInfo.progress = 100;
             if (this.onProgress) {
-                this.onProgress(fileId, uploadInfo);
+                this.onProgress(finalFileId, uploadInfo);
             }
             if (this.onComplete) {
-                this.onComplete(fileId, file);
+                this.onComplete(finalFileId, file);
             }
 
         } catch (error) {
@@ -67,10 +72,10 @@ class FileUploader {
             uploadInfo.status = 'error';
             uploadInfo.error = error.message;
             if (this.onProgress) {
-                this.onProgress(fileId, uploadInfo);
+                this.onProgress(finalFileId, uploadInfo);
             }
             if (this.onError) {
-                this.onError(fileId, error);
+                this.onError(finalFileId, error);
             }
         }
     }
@@ -103,6 +108,20 @@ class FileUploader {
                 uploadInfo.uploadedChunks = i + 1;
                 uploadInfo.uploadedBytes += buffer.byteLength;
                 uploadInfo.progress = Math.round((uploadInfo.uploadedBytes / file.size) * 100);
+
+                // 计算速度和时长
+                const now = Date.now();
+                const elapsedTime = (now - uploadInfo.startTime) / 1000; // 秒
+                uploadInfo.duration = elapsedTime;
+
+                // 计算速度（每秒更新一次）
+                if (now - uploadInfo.lastUpdateTime >= 1000) {
+                    const timeDiff = (now - uploadInfo.lastUpdateTime) / 1000;
+                    const bytesDiff = uploadInfo.uploadedBytes - uploadInfo.lastUploadedBytes;
+                    uploadInfo.speed = (bytesDiff * 8) / (timeDiff * 1000000); // Mbps
+                    uploadInfo.lastUpdateTime = now;
+                    uploadInfo.lastUploadedBytes = uploadInfo.uploadedBytes;
+                }
 
                 if (this.onProgress) {
                     this.onProgress(fileId, uploadInfo);
