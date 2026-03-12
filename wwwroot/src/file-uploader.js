@@ -36,7 +36,7 @@ class FileUploader {
                 filename: file.name,
                 size: fileSize,
                 chunks: totalChunks,
-                fileId: fileId
+                file_id: fileId
             };
 
             this.wsClient.send(JSON.stringify(startMessage));
@@ -48,7 +48,7 @@ class FileUploader {
             const endMessage = {
                 op: 'upload_end',
                 filename: file.name,
-                fileId: fileId
+                file_id: fileId
             };
 
             this.wsClient.send(JSON.stringify(endMessage));
@@ -88,9 +88,9 @@ class FileUploader {
             const metadata = {
                 op: 'upload_chunk',
                 filename: file.name,
-                fileId: fileId,
+                file_id: fileId,
                 index: i,
-                totalChunks: totalChunks,
+                total_chunks: totalChunks,
                 size: buffer.byteLength
             };
 

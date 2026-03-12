@@ -29,8 +29,8 @@ class FileDownloader {
 
         const downloadInfo = {
             filename: filename,
-            fileId: fileId,
-            totalChunks: 0,
+            file_id: fileId,
+            total_chunks: 0,
             receivedChunks: 0,
             receivedBytes: 0,
             progress: 0,
