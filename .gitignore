@@ -1,2 +1,3 @@
 websocket_server/target/*
 wwwroot/node_modules/*
+websocket_server/uploads/*

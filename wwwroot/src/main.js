@@ -92,7 +92,7 @@ class App {
                     const downloadInfo = Array.from(this.downloader.activeDownloads.values())
                         .find(info => info.status === 'downloading');
                     if (downloadInfo) {
-                        this.downloader.handleChunk({ op: 'download_chunk', fileId: downloadInfo.fileId }, event.data);
+                        this.downloader.handleChunk({ op: 'download_chunk', file_id: downloadInfo.fileId }, event.data);
                     }
                 }
             };

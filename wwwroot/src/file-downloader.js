@@ -13,8 +13,13 @@ class FileDownloader {
     async initStreamSaver() {
         try {
             // StreamSaver 已经通过 script 标签加载为全局对象
-            this.streamSaver = window.streamSaver;
-            return true;
+            if (window.streamSaver && window.streamSaver.createWriteStream) {
+                this.streamSaver = window.streamSaver;
+                return true;
+            } else {
+                console.warn('StreamSaver 不可用，将使用 Blob 下载');
+                return false;
+            }
         } catch (error) {
             console.error('加载 StreamSaver 失败:', error);
             return false;
@@ -50,7 +55,7 @@ class FileDownloader {
             const requestMessage = {
                 op: 'download_request',
                 filename: filename,
-                fileId: finalFileId
+                file_id: finalFileId
             };
 
             this.wsClient.send(JSON.stringify(requestMessage));
@@ -70,7 +75,7 @@ class FileDownloader {
 
     // 处理下载块
     handleChunk(message, data) {
-        const fileId = message.fileId || message.downloadId;
+        const fileId = message.file_id || message.fileId || message.downloadId;
         const downloadInfo = this.activeDownloads.get(fileId);
 
         if (!downloadInfo) {
@@ -90,12 +95,8 @@ class FileDownloader {
             downloadInfo.lastUpdateTime = Date.now();
             downloadInfo.lastReceivedBytes = 0;
 
-            // 初始化 StreamSaver
-            this.initStreamSaver().then(success => {
-                if (success) {
-                    this.createFileStream(downloadInfo);
-                }
-            });
+            // 初始化 StreamSaver（使用 Blob 方式下载，不依赖 StreamSaver）
+            downloadInfo.useBlob = true;
 
         } else if (message.op === 'download_chunk') {
             // 接收到数据块
@@ -135,8 +136,8 @@ class FileDownloader {
                     this.onProgress(fileId, downloadInfo);
                 }
 
-                // 写入文件流
-                if (downloadInfo.fileStream) {
+                        // 写入文件流（StreamSaver 不可用时，直接存储到 chunks）
+                if (!downloadInfo.useBlob && downloadInfo.fileStream) {
                     downloadInfo.fileStream.write(data);
                 }
 
@@ -165,8 +166,13 @@ class FileDownloader {
     // 创建文件流
     createFileStream(downloadInfo) {
         try {
-            const fileStream = this.streamSaver.createWriteStream(downloadInfo.filename);
-            downloadInfo.fileStream = fileStream;
+            if (this.streamSaver && this.streamSaver.createWriteStream) {
+                const fileStream = this.streamSaver.createWriteStream(downloadInfo.filename);
+                downloadInfo.fileStream = fileStream;
+            } else {
+                // StreamSaver 不可用，使用 Blob 下载
+                downloadInfo.useBlob = true;
+            }
         } catch (error) {
             console.error('创建文件流失败:', error);
             // 如果 StreamSaver 不可用，使用 Blob 下载
@@ -244,7 +250,7 @@ class FileDownloader {
 
             const cancelMessage = {
                 op: 'download_cancel',
-                fileId: fileId
+                file_id: fileId
             };
             this.wsClient.send(JSON.stringify(cancelMessage));
         }

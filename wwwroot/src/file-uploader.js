@@ -162,7 +162,7 @@ class FileUploader {
 
             const cancelMessage = {
                 op: 'upload_cancel',
-                fileId: fileId
+                file_id: fileId
             };
             this.wsClient.send(JSON.stringify(cancelMessage));
         }
