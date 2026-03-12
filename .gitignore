@@ -1,0 +1,2 @@
+websocket_server/target/*
+wwwroot/node_modules/*
