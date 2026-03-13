@@ -8,7 +8,7 @@ class FileDownloader {
         this.activeDownloads = new Map();
         this.streamSaver = window.streamSaver || null;
         this.chunkBufferSize = 1024 * 1024; // 1MB 缓冲区大小
-        this.progressUpdateInterval = 200; // 进度更新间隔 (ms)
+        this.progressUpdateInterval = 10; // 进度更新间隔 (ms)
     }
 
     // 请求下载文件
@@ -58,7 +58,7 @@ class FileDownloader {
 
     // 处理下载块
     async handleChunk(message, data) {
-        console.log('[下载] 收到消息:', message.op, '文件ID:', message.file_id, '数据长度:', data?.byteLength || 0);
+        // console.log('[下载] 收到消息:', message.op, '文件ID:', message.file_id, '数据长度:', data?.byteLength || 0);
 
         const fileId = message.file_id || message.fileId || message.downloadId;
         const downloadInfo = this.activeDownloads.get(fileId);
@@ -96,7 +96,7 @@ class FileDownloader {
             }
 
         } else if (message.op === 'download_chunk') {
-            console.log('[下载] download_chunk - 索引:', message.index, '总块数:', message.total_chunks, '文件ID:', fileId);
+            // console.log('[下载] download_chunk - 索引:', message.index, '总块数:', message.total_chunks, '文件ID:', fileId);
 
             // 接收数据块
             downloadInfo.receivedChunks++;
@@ -107,6 +107,7 @@ class FileDownloader {
             // 更新进度（优化：减少更新频率）
             const now = Date.now();
             const progressUpdateNeeded = (now - downloadInfo.lastProgressUpdate) >= this.progressUpdateInterval;
+            // console.log('[下载] 进度更新检查 ', now - downloadInfo.lastProgressUpdate, 'ms 过去', "now ", now, "lastProgressUpdate ", downloadInfo.lastProgressUpdate);
 
             if (progressUpdateNeeded) {
                 if (downloadInfo.totalSize > 0) {

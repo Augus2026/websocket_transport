@@ -37,6 +37,10 @@ class App {
         // 连接状态更新
         this.wsClient.onConnectionChange = (connected) => {
             this.ui.updateConnectionStatus(connected);
+            // 连接建立后设置二进制消息处理器
+            if (connected) {
+                this.setupBinaryMessageHandler();
+            }
         };
 
         // 文件选择
@@ -76,9 +80,13 @@ class App {
         this.wsClient.on('download_error', (message) => {
             this.downloader.handleChunk(message, null);
         });
+    }
 
+    setupBinaryMessageHandler() {
+        console.log('[Main] 设置二进制消息处理器...');
         // 监听 WebSocket 二进制消息
         if (this.wsClient.ws) {
+            console.log('[Main] WebSocket 实例存在，设置 onmessage 处理器');
             this.wsClient.ws.onmessage = (event) => {
                 if (typeof event.data === 'string') {
                     try {
@@ -93,12 +101,14 @@ class App {
                     const downloadInfo = Array.from(this.downloader.activeDownloads.values())
                         .find(info => info.status === 'downloading');
                     if (downloadInfo) {
-                        this.downloader.handleChunk({ op: 'download_chunk', file_id: downloadInfo.fileId }, event.data);
+                        this.downloader.handleChunk({ op: 'download_chunk', file_id: downloadInfo.file_id }, event.data);
                     } else {
                         console.warn('[Main] 没有找到正在进行的下载任务');
                     }
                 }
             };
+        } else {
+            console.error('[Main] WebSocket 实例不存在，无法设置二进制消息处理器');
         }
     }
 

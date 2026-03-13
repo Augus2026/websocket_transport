@@ -71,14 +71,14 @@ class WebSocketClient {
         // 尝试解析为 JSON（元数据）
         try {
             const message = JSON.parse(data);
-            console.log('[WebSocket] 收到 JSON 消息:', message.op);
+            // console.log('[WebSocket] 收到 JSON 消息:', message.op);
             const handler = this.messageHandlers.get(message.op);
             if (handler) {
                 handler(message);
             }
         } catch (error) {
             // 如果不是 JSON，则是二进制数据
-            console.log('[WebSocket] 收到二进制数据，长度:', data.byteLength || data.length);
+            // console.log('[WebSocket] 收到二进制数据，长度:', data.byteLength || data.length);
         }
     }
 
