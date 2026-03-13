@@ -6,33 +6,15 @@ class FileDownloader {
         this.onComplete = onComplete;
         this.onError = onError;
         this.activeDownloads = new Map();
-        this.streamSaver = null;
         this.chunkBufferSize = 1024 * 1024; // 1MB 缓冲区大小
         this.progressUpdateInterval = 200; // 进度更新间隔 (ms)
-    }
-
-    // 初始化 StreamSaver
-    async initStreamSaver() {
-        try {
-            // StreamSaver 已经通过 script 标签加载为全局对象
-            if (window.streamSaver && window.streamSaver.createWriteStream) {
-                this.streamSaver = window.streamSaver;
-                return true;
-            } else {
-                console.warn('StreamSaver 不可用，将使用 Blob 下载');
-                return false;
-            }
-        } catch (error) {
-            console.error('加载 StreamSaver 失败:', error);
-            return false;
-        }
     }
 
     // 请求下载文件
     async downloadFile(filename, fileId = null) {
         const finalFileId = fileId || this.generateFileId();
 
-        console.log(`请求下载: ${filename}`);
+        console.log(`[下载] 请求下载文件: ${filename}, 文件ID: ${finalFileId}`);
 
         const downloadInfo = {
             filename: filename,
@@ -48,7 +30,6 @@ class FileDownloader {
             lastReceivedBytes: 0,
             speed: 0,
             duration: 0,
-            useBlob: true, // 使用 Blob 方式下载
             lastProgressUpdate: 0 // 优化进度更新频率
         };
 
@@ -79,6 +60,8 @@ class FileDownloader {
 
     // 处理下载块
     handleChunk(message, data) {
+        console.log('[下载] 收到消息:', message.op, '文件ID:', message.file_id, '数据长度:', data?.byteLength || 0);
+
         const fileId = message.file_id || message.fileId || message.downloadId;
         const downloadInfo = this.activeDownloads.get(fileId);
 
@@ -88,6 +71,7 @@ class FileDownloader {
         }
 
         if (message.op === 'download_start') {
+            console.log('[下载] download_start - 文件:', downloadInfo.filename, '大小:', message.size, '块数:', message.chunks);
             // 下载开始，初始化
             downloadInfo.totalChunks = message.chunks || 0;
             downloadInfo.totalSize = message.size || 0;
@@ -99,15 +83,13 @@ class FileDownloader {
             downloadInfo.lastUpdateTime = Date.now();
             downloadInfo.lastReceivedBytes = 0;
 
-            // 初始化 StreamSaver（使用 Blob 方式下载，不依赖 StreamSaver）
-            downloadInfo.useBlob = true;
-
             // 更新初始进度
             if (this.onProgress) {
                 this.onProgress(fileId, downloadInfo);
             }
 
         } else if (message.op === 'download_chunk') {
+            console.log('[下载] download_chunk - 索引:', message.index, '总块数:', message.total_chunks, '文件ID:', fileId);
             // 接收到数据块
             const index = message.index;
             if (index >= 0 && index < downloadInfo.chunks.length) {
@@ -145,16 +127,12 @@ class FileDownloader {
                     }
 
                     // 更新进度显示
+                    console.log('[下载] 进度更新 - 文件:', downloadInfo.filename, '进度:', downloadInfo.progress, '%');
                     if (this.onProgress) {
                         this.onProgress(fileId, downloadInfo);
                     }
 
                     downloadInfo.lastProgressUpdate = now;
-                }
-
-                        // 写入文件流（StreamSaver 不可用时，直接存储到 chunks）
-                if (!downloadInfo.useBlob && downloadInfo.fileStream) {
-                    downloadInfo.fileStream.write(data);
                 }
 
                 // 检查是否完成
@@ -164,9 +142,11 @@ class FileDownloader {
             }
 
         } else if (message.op === 'download_end') {
+            console.log('[下载] download_end - 文件:', downloadInfo.filename, '已完成');
             // 下载完成
             this.completeDownload(fileId);
         } else if (message.op === 'download_error') {
+            console.error('[下载] download_error - 错误:', message.error, '文件ID:', fileId);
             // 下载错误
             downloadInfo.status = 'error';
             downloadInfo.error = message.error || '下载失败';
@@ -176,23 +156,6 @@ class FileDownloader {
             if (this.onError) {
                 this.onError(fileId, new Error(downloadInfo.error));
             }
-        }
-    }
-
-    // 创建文件流
-    createFileStream(downloadInfo) {
-        try {
-            if (this.streamSaver && this.streamSaver.createWriteStream) {
-                const fileStream = this.streamSaver.createWriteStream(downloadInfo.filename);
-                downloadInfo.fileStream = fileStream;
-            } else {
-                // StreamSaver 不可用，使用 Blob 下载
-                downloadInfo.useBlob = true;
-            }
-        } catch (error) {
-            console.error('创建文件流失败:', error);
-            // 如果 StreamSaver 不可用，使用 Blob 下载
-            downloadInfo.useBlob = true;
         }
     }
 
@@ -211,13 +174,8 @@ class FileDownloader {
         downloadInfo.status = 'completed';
         downloadInfo.progress = 100;
 
-        // 关闭文件流
-        if (downloadInfo.fileStream) {
-            downloadInfo.fileStream.close();
-        }
-
-        // 如果使用 Blob 方式下载
-        if (downloadInfo.useBlob && downloadInfo.chunks.length > 0) {
+        // 使用 Blob 方式下载
+        if (downloadInfo.chunks.length > 0) {
             this.downloadAsBlob(downloadInfo);
         }
 
@@ -256,11 +214,6 @@ class FileDownloader {
         const downloadInfo = this.activeDownloads.get(fileId);
         if (downloadInfo) {
             downloadInfo.status = 'cancelled';
-
-            // 关闭文件流
-            if (downloadInfo.fileStream) {
-                downloadInfo.fileStream.close();
-            }
 
             this.activeDownloads.delete(fileId);
 

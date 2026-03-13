@@ -21,7 +21,7 @@ use tracing::{debug, error, info, warn};
 use tracing_subscriber;
 
 // 服务器配置
-const SERVER_ADDR: &str = "0.0.0.0:8080";
+const SERVER_ADDR: &str = "0.0.0.0:9090";
 const STORAGE_DIR: &str = "./uploads";
 
 // TCP 缓冲区配置 (单位: 字节)

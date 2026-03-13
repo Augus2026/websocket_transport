@@ -28,8 +28,8 @@ class App {
     getWebSocketUrl() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.hostname;
-        // WebSocket 服务器总是在 8080 端口，不管前端页面在哪个端口
-        const port = ':8080';
+        // WebSocket 服务器总是在 9090 端口，不管前端页面在哪个端口
+        const port = ':9090';
         return `${protocol}//${host}${port}/ws`;
     }
 
@@ -89,10 +89,13 @@ class App {
                     }
                 } else {
                     // 二进制数据，找到对应的下载任务
+                    console.log('[Main] 处理二进制数据，长度:', event.data.byteLength);
                     const downloadInfo = Array.from(this.downloader.activeDownloads.values())
                         .find(info => info.status === 'downloading');
                     if (downloadInfo) {
                         this.downloader.handleChunk({ op: 'download_chunk', file_id: downloadInfo.fileId }, event.data);
+                    } else {
+                        console.warn('[Main] 没有找到正在进行的下载任务');
                     }
                 }
             };
