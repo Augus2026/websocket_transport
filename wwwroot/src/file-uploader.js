@@ -5,8 +5,10 @@ class FileUploader {
         this.onProgress = onProgress;
         this.onComplete = onComplete;
         this.onError = onError;
-        this.chunkSize = 64 * 1024; // 64KB
+        this.chunkSize = 512 * 1024; // 512KB - 增加块大小以提高传输效率
         this.activeUploads = new Map();
+        this.pipelineSize = 3; // 流水线大小，允许同时发送多个块
+        this.maxQueueSize = 10; // 最大队列大小
     }
 
     // 上传文件
@@ -80,56 +82,73 @@ class FileUploader {
         }
     }
 
-    // 发送文件块
+    // 发送文件块 - 优化版本：使用流水线传输
     async sendFileChunks(file, fileId, totalChunks) {
-        for (let i = 0; i < totalChunks; i++) {
-            const start = i * this.chunkSize;
-            const end = Math.min(start + this.chunkSize, file.size);
-            const chunk = file.slice(start, end);
+        const uploadInfo = this.activeUploads.get(fileId);
+        const chunkQueue = [];
+        let currentIndex = 0;
 
-            const buffer = await this.readFileAsArrayBuffer(chunk);
+        // 使用流水线发送，允许同时发送多个块
+        while (currentIndex < totalChunks) {
+            // 填充流水线队列
+            while (chunkQueue.length < this.pipelineSize && currentIndex < totalChunks) {
+                const start = currentIndex * this.chunkSize;
+                const end = Math.min(start + this.chunkSize, file.size);
+                const chunk = file.slice(start, end);
 
-            // 发送元数据头
-            const metadata = {
-                op: 'upload_chunk',
-                filename: file.name,
-                file_id: fileId,
-                index: i,
-                total_chunks: totalChunks,
-                size: buffer.byteLength
-            };
+                const buffer = await this.readFileAsArrayBuffer(chunk);
 
-            this.wsClient.send(JSON.stringify(metadata));
-            this.wsClient.sendBinary(buffer);
+                // 发送元数据头
+                const metadata = {
+                    op: 'upload_chunk',
+                    filename: file.name,
+                    file_id: fileId,
+                    index: currentIndex,
+                    total_chunks: totalChunks,
+                    size: buffer.byteLength
+                };
 
-            // 更新进度
-            const uploadInfo = this.activeUploads.get(fileId);
-            if (uploadInfo) {
-                uploadInfo.uploadedChunks = i + 1;
-                uploadInfo.uploadedBytes += buffer.byteLength;
-                uploadInfo.progress = Math.round((uploadInfo.uploadedBytes / file.size) * 100);
+                // 直接发送，不等待确认
+                this.wsClient.send(JSON.stringify(metadata));
+                this.wsClient.sendBinary(buffer);
 
-                // 计算速度和时长
-                const now = Date.now();
-                const elapsedTime = (now - uploadInfo.startTime) / 1000; // 秒
-                uploadInfo.duration = elapsedTime;
+                chunkQueue.push(currentIndex);
+                currentIndex++;
 
-                // 计算速度（每秒更新一次）
-                if (now - uploadInfo.lastUpdateTime >= 1000) {
-                    const timeDiff = (now - uploadInfo.lastUpdateTime) / 1000;
-                    const bytesDiff = uploadInfo.uploadedBytes - uploadInfo.lastUploadedBytes;
-                    uploadInfo.speed = (bytesDiff * 8) / (timeDiff * 1000000); // Mbps
-                    uploadInfo.lastUpdateTime = now;
-                    uploadInfo.lastUploadedBytes = uploadInfo.uploadedBytes;
-                }
-
-                if (this.onProgress) {
-                    this.onProgress(fileId, uploadInfo);
-                }
+                // 更新发送统计
+                uploadInfo.uploadedBytes = Math.min(currentIndex * this.chunkSize, file.size);
+                uploadInfo.uploadedChunks = Math.min(currentIndex, totalChunks);
             }
 
-            // 添加延迟以避免拥塞
-            await this.delay(10);
+            // 更新进度
+            uploadInfo.progress = Math.round((uploadInfo.uploadedBytes / file.size) * 100);
+
+            // 计算速度和时长
+            const now = Date.now();
+            const elapsedTime = (now - uploadInfo.startTime) / 1000; // 秒
+            uploadInfo.duration = elapsedTime;
+
+            // 计算速度（每秒更新一次）
+            if (now - uploadInfo.lastUpdateTime >= 1000) {
+                const timeDiff = (now - uploadInfo.lastUpdateTime) / 1000;
+                const bytesDiff = uploadInfo.uploadedBytes - uploadInfo.lastUploadedBytes;
+                uploadInfo.speed = (bytesDiff * 8) / (timeDiff * 1000000); // Mbps
+                uploadInfo.lastUpdateTime = now;
+                uploadInfo.lastUploadedBytes = uploadInfo.uploadedBytes;
+            }
+
+            if (this.onProgress) {
+                this.onProgress(fileId, uploadInfo);
+            }
+
+            // 等待一小段时间以避免过度占用带宽
+            await this.delay(1); // 减少延迟到 1ms
+
+            // 模拟队列管理（简化版，实际应该基于服务器确认）
+            if (chunkQueue.length > 0) {
+                // 移除一个已处理的块
+                chunkQueue.shift();
+            }
         }
     }
 

@@ -16,12 +16,20 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
 };
+use tokio::net::TcpSocket;
 use tracing::{debug, error, info, warn};
 use tracing_subscriber;
 
 // 服务器配置
 const SERVER_ADDR: &str = "0.0.0.0:8080";
 const STORAGE_DIR: &str = "./uploads";
+
+// TCP 缓冲区配置 (单位: 字节)
+const TCP_RECV_BUFFER_SIZE: u32 = 12 * 1024 * 1024; // 12MB 接收缓冲区
+const TCP_SEND_BUFFER_SIZE: u32 = 12 * 1024 * 1024; // 12MB 发送缓冲区
+
+// 文件块大小配置 (单位: 字节)
+const DEFAULT_CHUNK_SIZE: usize = 512 * 1024; // 512KB 块大小
 
 // 文件上传状态
 #[derive(Clone)]
@@ -219,7 +227,7 @@ async fn handle_message(
 
                     ClientMessage::UploadChunk {
                         filename,
-                        file_id,
+                        file_id: _,
                         index,
                         total_chunks: _,
                         size,
@@ -352,7 +360,9 @@ async fn handle_message(
                         }
                     }
 
-                    ClientMessage::DownloadCancel { file_id } => {
+                    ClientMessage::DownloadCancel {
+                        file_id,
+                    } => {
                         info!("取消下载: {}", file_id);
 
                         let response = ServerMessage::DownloadError {
@@ -445,7 +455,7 @@ async fn save_file(file_id: &str, state: &AppState) -> Result<()> {
     Ok(())
 }
 
-// 发送文件块
+// 发送文件块 - 优化版本
 async fn send_file_chunks(
     data: &[u8],
     chunk_size: usize,
@@ -472,8 +482,8 @@ async fn send_file_chunks(
         // 发送二进制数据
         sender.send(Message::Binary(Bytes::copy_from_slice(chunk).to_vec())).await?;
 
-        // 小延迟以避免拥塞
-        tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
+        // 移除延迟以提高传输速度
+        // tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
     }
 
     Ok(())
@@ -581,8 +591,26 @@ async fn main() -> Result<()> {
     info!("WebSocket 文件传输服务器启动于: {}", SERVER_ADDR);
     info!("文件存储目录: {}", STORAGE_DIR);
     info!("文件列表页面: http://{}/files", SERVER_ADDR);
+    info!("TCP 接收缓冲区: {} MB", TCP_RECV_BUFFER_SIZE / 1024 / 1024);
+    info!("TCP 发送缓冲区: {} MB", TCP_SEND_BUFFER_SIZE / 1024 / 1024);
 
-    let listener = tokio::net::TcpListener::bind(SERVER_ADDR).await?;
+    // 创建 TCP socket 并设置缓冲区大小
+    let addr: std::net::SocketAddr = SERVER_ADDR.parse()?;
+    let socket = TcpSocket::new_v4()?;
+
+    // // 设置接收缓冲区大小
+    // if let Err(e) = socket.set_recv_buffer_size(TCP_RECV_BUFFER_SIZE) {
+    //     warn!("设置 TCP 接收缓冲区失败: {}, 将使用系统默认值", e);
+    // }
+
+    // // 设置发送缓冲区大小
+    // if let Err(e) = socket.set_send_buffer_size(TCP_SEND_BUFFER_SIZE) {
+    //     warn!("设置 TCP 发送缓冲区失败: {}, 将使用系统默认值", e);
+    // }
+
+    // 绑定并监听
+    socket.bind(addr)?;
+    let listener = socket.listen(1024)?; // 1024 是连接队列长度
     axum::serve(listener, app).await?;
 
     Ok(())

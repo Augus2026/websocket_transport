@@ -19,7 +19,11 @@ class WebSocketClient {
         this.isConnecting = true;
 
         try {
+            // 优化 WebSocket 连接配置
             this.ws = new WebSocket(this.url);
+
+            // 设置二进制类型为 ArrayBuffer（比 Blob 更高效）
+            this.ws.binaryType = 'arraybuffer';
 
             this.ws.onopen = () => {
                 console.log('WebSocket 连接已建立');

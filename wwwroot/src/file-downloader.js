@@ -7,6 +7,8 @@ class FileDownloader {
         this.onError = onError;
         this.activeDownloads = new Map();
         this.streamSaver = null;
+        this.chunkBufferSize = 1024 * 1024; // 1MB 缓冲区大小
+        this.progressUpdateInterval = 200; // 进度更新间隔 (ms)
     }
 
     // 初始化 StreamSaver
@@ -46,7 +48,8 @@ class FileDownloader {
             lastReceivedBytes: 0,
             speed: 0,
             duration: 0,
-            useBlob: true // 使用 Blob 方式下载
+            useBlob: true, // 使用 Blob 方式下载
+            lastProgressUpdate: 0 // 优化进度更新频率
         };
 
         this.activeDownloads.set(finalFileId, downloadInfo);
@@ -115,32 +118,38 @@ class FileDownloader {
                     downloadInfo.receivedBytes += data.byteLength || data.length || 0;
                 }
 
-                // 更新进度
-                if (downloadInfo.totalSize > 0) {
-                    downloadInfo.progress = Math.round((downloadInfo.receivedBytes / downloadInfo.totalSize) * 100);
-                } else {
-                    downloadInfo.progress = Math.round((downloadInfo.receivedChunks / downloadInfo.totalChunks) * 100);
-                }
-
-                // 计算速度和时长
+                // 更新进度（优化：减少更新频率）
                 const now = Date.now();
-                if (downloadInfo.startTime) {
-                    const elapsedTime = (now - downloadInfo.startTime) / 1000; // 秒
-                    downloadInfo.duration = elapsedTime;
+                const progressUpdateNeeded = (now - downloadInfo.lastProgressUpdate) >= this.progressUpdateInterval;
 
-                    // 计算速度（每秒更新一次）
-                    if (now - downloadInfo.lastUpdateTime >= 1000) {
-                        const timeDiff = (now - downloadInfo.lastUpdateTime) / 1000;
-                        const bytesDiff = downloadInfo.receivedBytes - downloadInfo.lastReceivedBytes;
-                        downloadInfo.speed = (bytesDiff * 8) / (timeDiff * 1000000); // Mbps
-                        downloadInfo.lastUpdateTime = now;
-                        downloadInfo.lastReceivedBytes = downloadInfo.receivedBytes;
+                if (progressUpdateNeeded) {
+                    if (downloadInfo.totalSize > 0) {
+                        downloadInfo.progress = Math.round((downloadInfo.receivedBytes / downloadInfo.totalSize) * 100);
+                    } else {
+                        downloadInfo.progress = Math.round((downloadInfo.receivedChunks / downloadInfo.totalChunks) * 100);
                     }
-                }
 
-                // 更新进度显示
-                if (this.onProgress) {
-                    this.onProgress(fileId, downloadInfo);
+                    // 计算速度和时长
+                    if (downloadInfo.startTime) {
+                        const elapsedTime = (now - downloadInfo.startTime) / 1000; // 秒
+                        downloadInfo.duration = elapsedTime;
+
+                        // 计算速度（每秒更新一次）
+                        if (now - downloadInfo.lastUpdateTime >= 1000) {
+                            const timeDiff = (now - downloadInfo.lastUpdateTime) / 1000;
+                            const bytesDiff = downloadInfo.receivedBytes - downloadInfo.lastReceivedBytes;
+                            downloadInfo.speed = (bytesDiff * 8) / (timeDiff * 1000000); // Mbps
+                            downloadInfo.lastUpdateTime = now;
+                            downloadInfo.lastReceivedBytes = downloadInfo.receivedBytes;
+                        }
+                    }
+
+                    // 更新进度显示
+                    if (this.onProgress) {
+                        this.onProgress(fileId, downloadInfo);
+                    }
+
+                    downloadInfo.lastProgressUpdate = now;
                 }
 
                         // 写入文件流（StreamSaver 不可用时，直接存储到 chunks）
