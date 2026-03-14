@@ -1,4 +1,3 @@
-// UI 管理器
 class UIManager {
     constructor() {
         this.connectionStatus = document.getElementById('connectionStatus');
@@ -15,21 +14,18 @@ class UIManager {
     }
 
     initEventListeners() {
-        // 上传区域点击
         this.uploadArea.addEventListener('click', () => {
             this.fileInput.click();
         });
 
-        // 文件选择
         this.fileInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
             if (files.length > 0 && this.onFileSelect) {
                 this.onFileSelect(files);
             }
-            this.fileInput.value = ''; // 重置
+            this.fileInput.value = '';
         });
 
-        // 拖拽上传
         this.uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
             this.uploadArea.classList.add('dragover');
@@ -48,7 +44,6 @@ class UIManager {
             }
         });
 
-        // 下载按钮
         this.downloadBtn.addEventListener('click', () => {
             const filename = this.filenameInput.value.trim();
             if (filename && this.onDownloadRequest) {
@@ -56,7 +51,6 @@ class UIManager {
             }
         });
 
-        // 回车键下载
         this.filenameInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 this.filenameInput.blur();
@@ -98,12 +92,9 @@ class UIManager {
             </div>
         `;
 
-        // 关闭按钮
         const closeBtn = item.querySelector('.close');
         closeBtn.addEventListener('click', () => {
-            if (this.onCancel) {
-                this.onCancel(fileId, type);
-            }
+            if (this.onCancel) this.onCancel(fileId, type);
         });
 
         this.progressContainer.appendChild(item);
@@ -114,9 +105,7 @@ class UIManager {
 
     updateProgress(fileId, progress, status, transferredSize = null, totalSize = null, speed = null, duration = null) {
         const item = this.progressItems.get(fileId);
-        if (!item) {
-            return;
-        }
+        if (!item) return;
 
         const progressBar = item.querySelector('.progress-bar-inner');
         const progressText = item.querySelector('.progress-text');
@@ -129,30 +118,18 @@ class UIManager {
 
         let statusMessage = status;
         if (transferredSize !== null && totalSize !== null) {
-            const formattedTransferred = this.formatSize(transferredSize);
-            const formattedTotal = this.formatSize(totalSize);
-            statusMessage = `${status} (${formattedTransferred}/${formattedTotal})`;
+            statusMessage = `${status} (${this.formatSize(transferredSize)}/${this.formatSize(totalSize)})`;
         }
-
         statusText.textContent = statusMessage;
 
-        // 更新速度和时长
-        if (speed !== null) {
-            speedElement.textContent = `⚡ ${speed.toFixed(2)} Mbps`;
-        }
-        if (duration !== null) {
-            timeElement.textContent = `⏱️ ${this.formatDuration(duration)}`;
-        }
+        if (speed !== null) speedElement.textContent = `⚡ ${speed.toFixed(2)} Mbps`;
+        if (duration !== null) timeElement.textContent = `⏱️ ${this.formatDuration(duration)}`;
 
-        // 根据状态添加样式
         const progressInfo = item.querySelector('.progress-info');
         progressInfo.classList.remove('completed', 'error');
 
-        if (status === '已完成') {
-            progressInfo.classList.add('completed');
-        } else if (status === '失败' || status === '已取消') {
-            progressInfo.classList.add('error');
-        }
+        if (status === '已完成') progressInfo.classList.add('completed');
+        else if (status === '失败' || status === '已取消') progressInfo.classList.add('error');
     }
 
     removeProgressItem(fileId) {
@@ -172,30 +149,20 @@ class UIManager {
     }
 
     formatDuration(seconds) {
-        if (seconds < 60) {
-            return `${Math.round(seconds)}s`;
-        } else if (seconds < 3600) {
+        if (seconds < 60) return `${Math.round(seconds)}s`;
+        if (seconds < 3600) {
             const minutes = Math.floor(seconds / 60);
             const remainingSeconds = Math.round(seconds % 60);
             return `${minutes}m ${remainingSeconds}s`;
-        } else {
-            const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            return `${hours}h ${minutes}m`;
         }
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return `${hours}h ${minutes}m`;
     }
 
-    setFileSelectHandler(handler) {
-        this.onFileSelect = handler;
-    }
-
-    setDownloadRequestHandler(handler) {
-        this.onDownloadRequest = handler;
-    }
-
-    setCancelHandler(handler) {
-        this.onCancel = handler;
-    }
+    setFileSelectHandler(handler) { this.onFileSelect = handler; }
+    setDownloadRequestHandler(handler) { this.onDownloadRequest = handler; }
+    setCancelHandler(handler) { this.onCancel = handler; }
 }
 
 export default UIManager;
