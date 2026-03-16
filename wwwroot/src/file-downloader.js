@@ -129,13 +129,9 @@ class FileDownloader {
                     console.error('Failed to write chunk to file stream:', error);
                 }
             }
-
-            // 不要在这里自动完成下载，等待 download_end 消息
-
         } else if (message.op === 'download_end') {
             console.log('Download end received for:', downloadInfo.filename);
             this.completeDownload(fileId);
-
         } else if (message.op === 'download_error') {
             console.error('Download error:', message.error, 'File ID:', fileId);
             downloadInfo.status = 'error';
@@ -166,9 +162,7 @@ class FileDownloader {
         if (downloadInfo.fileStream) {
             try {
                 const writer = downloadInfo.fileStream;
-                // 等待所有写入操作完成
                 await writer.ready;
-                // 关闭流，StreamSaver 会触发文件下载
                 await writer.close();
                 console.log('File stream closed and saved:', downloadInfo.filename);
             } catch (error) {
