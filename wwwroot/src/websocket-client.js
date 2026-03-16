@@ -1,4 +1,3 @@
-// WebSocket 客户端类
 class WebSocketClient {
     constructor(url) {
         this.url = url;
@@ -19,14 +18,11 @@ class WebSocketClient {
         this.isConnecting = true;
 
         try {
-            // 优化 WebSocket 连接配置
             this.ws = new WebSocket(this.url);
-
-            // 设置二进制类型为 ArrayBuffer（比 Blob 更高效）
             this.ws.binaryType = 'arraybuffer';
 
             this.ws.onopen = () => {
-                console.log('WebSocket 连接已建立');
+                console.log('WebSocket connected');
                 this.reconnectAttempts = 0;
                 this.isConnecting = false;
                 if (this.onConnectionChange) {
@@ -39,11 +35,11 @@ class WebSocketClient {
             };
 
             this.ws.onerror = (error) => {
-                console.error('WebSocket 错误:', error);
+                console.error('WebSocket error:', error);
             };
 
             this.ws.onclose = () => {
-                console.log('WebSocket 连接已关闭');
+                console.log('WebSocket closed');
                 this.isConnecting = false;
                 if (this.onConnectionChange) {
                     this.onConnectionChange(false);
@@ -51,7 +47,7 @@ class WebSocketClient {
                 this.attemptReconnect();
             };
         } catch (error) {
-            console.error('连接错误:', error);
+            console.error('Connection error:', error);
             this.isConnecting = false;
             this.attemptReconnect();
         }
@@ -60,25 +56,21 @@ class WebSocketClient {
     attemptReconnect() {
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
-            console.log(`尝试重新连接 (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+            console.log(`Reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
             setTimeout(() => this.connect(), this.reconnectDelay);
         } else {
-            console.error('达到最大重连次数');
+            console.error('Max reconnection attempts reached');
         }
     }
 
     handleMessage(data) {
-        // 尝试解析为 JSON（元数据）
         try {
             const message = JSON.parse(data);
-            // console.log('[WebSocket] 收到 JSON 消息:', message.op);
             const handler = this.messageHandlers.get(message.op);
             if (handler) {
                 handler(message);
             }
         } catch (error) {
-            // 如果不是 JSON，则是二进制数据
-            // console.log('[WebSocket] 收到二进制数据，长度:', data.byteLength || data.length);
         }
     }
 
@@ -87,7 +79,7 @@ class WebSocketClient {
             this.ws.send(message);
             return true;
         } else {
-            console.error('WebSocket 未连接');
+            console.error('WebSocket not connected');
             return false;
         }
     }
@@ -97,7 +89,7 @@ class WebSocketClient {
             this.ws.send(buffer);
             return true;
         } else {
-            console.error('WebSocket 未连接');
+            console.error('WebSocket not connected');
             return false;
         }
     }
@@ -115,7 +107,7 @@ class WebSocketClient {
             this.ws.close();
             this.ws = null;
         }
-        this.reconnectAttempts = this.maxReconnectAttempts; // 防止重连
+        this.reconnectAttempts = this.maxReconnectAttempts;
     }
 
     isConnected() {

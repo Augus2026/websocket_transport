@@ -1,4 +1,3 @@
-// UI 管理器
 class UIManager {
     constructor() {
         this.connectionStatus = document.getElementById('connectionStatus');
@@ -15,21 +14,18 @@ class UIManager {
     }
 
     initEventListeners() {
-        // 上传区域点击
         this.uploadArea.addEventListener('click', () => {
             this.fileInput.click();
         });
 
-        // 文件选择
         this.fileInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
             if (files.length > 0 && this.onFileSelect) {
                 this.onFileSelect(files);
             }
-            this.fileInput.value = ''; // 重置
+            this.fileInput.value = '';
         });
 
-        // 拖拽上传
         this.uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
             this.uploadArea.classList.add('dragover');
@@ -48,7 +44,6 @@ class UIManager {
             }
         });
 
-        // 下载按钮
         this.downloadBtn.addEventListener('click', () => {
             const filename = this.filenameInput.value.trim();
             if (filename && this.onDownloadRequest) {
@@ -56,7 +51,6 @@ class UIManager {
             }
         });
 
-        // 回车键下载
         this.filenameInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 this.filenameInput.blur();
@@ -67,10 +61,10 @@ class UIManager {
 
     updateConnectionStatus(connected) {
         if (connected) {
-            this.connectionStatus.textContent = '已连接';
+            this.connectionStatus.textContent = 'Connected';
             this.connectionStatus.className = 'connection-status connected';
         } else {
-            this.connectionStatus.textContent = '未连接';
+            this.connectionStatus.textContent = 'Disconnected';
             this.connectionStatus.className = 'connection-status disconnected';
         }
     }
@@ -82,7 +76,7 @@ class UIManager {
 
         item.innerHTML = `
             <div class="progress-item-header">
-                <span>${type === 'upload' ? '↑ 上传' : '↓ 下载'}: ${filename}</span>
+                <span>${type === 'upload' ? '↑ Upload' : '↓ Download'}: ${filename}</span>
                 <span class="close" data-file-id="${fileId}">×</span>
             </div>
             <div class="progress-bar">
@@ -90,7 +84,7 @@ class UIManager {
             </div>
             <div class="progress-info">
                 <span class="progress-text">0%</span>
-                <span class="status-text">准备中...</span>
+                <span class="status-text">Ready...</span>
             </div>
             <div class="progress-speed-time">
                 <span class="speed">⚡ 0 Mbps</span>
@@ -98,7 +92,6 @@ class UIManager {
             </div>
         `;
 
-        // 关闭按钮
         const closeBtn = item.querySelector('.close');
         closeBtn.addEventListener('click', () => {
             if (this.onCancel) {
@@ -136,7 +129,6 @@ class UIManager {
 
         statusText.textContent = statusMessage;
 
-        // 更新速度和时长
         if (speed !== null) {
             speedElement.textContent = `⚡ ${speed.toFixed(2)} Mbps`;
         }
@@ -144,13 +136,12 @@ class UIManager {
             timeElement.textContent = `⏱️ ${this.formatDuration(duration)}`;
         }
 
-        // 根据状态添加样式
         const progressInfo = item.querySelector('.progress-info');
         progressInfo.classList.remove('completed', 'error');
 
-        if (status === '已完成') {
+        if (status === '已完成' || status === 'Completed') {
             progressInfo.classList.add('completed');
-        } else if (status === '失败' || status === '已取消') {
+        } else if (status.startsWith('失败') || status === 'Failed' || status === '已取消' || status === 'Cancelled') {
             progressInfo.classList.add('error');
         }
     }
