@@ -91,7 +91,7 @@ class App {
                     if (downloadInfo) {
                         this.downloader.handleChunk({ op: 'download_chunk', file_id: downloadInfo.file_id }, event.data);
                     } else {
-                        console.warn('No active download task');
+                        console.warn('No active download task for binary data');
                     }
                 }
             };
