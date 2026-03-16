@@ -70,8 +70,8 @@ class FileDownloader {
             downloadInfo.lastReceivedBytes = 0;
 
             try {
-                const fileStream = this.streamSaver.createWriteStream(downloadInfo.filename);
-                downloadInfo.fileStream = fileStream.getWriter ? fileStream.getWriter() : fileStream;
+                const fileStream = streamSaver.createWriteStream(downloadInfo.filename);
+                downloadInfo.fileStream = fileStream.getWriter();
             } catch (error) {
                 console.error('Failed to create file stream:', error);
                 throw error;
@@ -120,11 +120,14 @@ class FileDownloader {
 
             if (downloadInfo.fileStream) {
                 try {
-                    if (typeof downloadInfo.fileStream.write === 'function') {
-                        await downloadInfo.fileStream.write(data);
+                    if(data instanceof ArrayBuffer) {
+                        const chunk_data = new Uint8Array(data);
+
+                        const writer = downloadInfo.fileStream;
+                        writer.write(chunk_data);
                     }
                 } catch (error) {
-                    console.error('Failed to write to file stream:', error);
+                    console.error('Failed to write chunk to file stream:', error);
                 }
             }
 
@@ -164,9 +167,8 @@ class FileDownloader {
 
         if (downloadInfo.fileStream) {
             try {
-                if (typeof downloadInfo.fileStream.close === 'function') {
-                    await downloadInfo.fileStream.close();
-                }
+                const writer = downloadInfo.fileStream;
+                writer.close();
             } catch (error) {
                 console.error('Failed to close file stream:', error);
             }
@@ -191,9 +193,8 @@ class FileDownloader {
 
             if (downloadInfo.fileStream) {
                 try {
-                    if (typeof downloadInfo.fileStream.close === 'function') {
-                        await downloadInfo.fileStream.close();
-                    }
+                    const writer = downloadInfo.fileStream;
+                    await writer.close();
                 } catch (error) {
                     console.error('Failed to close file stream:', error);
                 }
