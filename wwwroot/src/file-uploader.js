@@ -6,8 +6,6 @@ class FileUploader {
         this.onError = onError;
         this.chunkSize = 512 * 1024;
         this.activeUploads = new Map();
-        this.pipelineSize = 3;
-        this.maxQueueSize = 10;
     }
 
     async uploadFile(file, fileId = null) {
@@ -77,35 +75,31 @@ class FileUploader {
 
     async sendFileChunks(file, fileId, totalChunks) {
         const uploadInfo = this.activeUploads.get(fileId);
-        const chunkQueue = [];
         let currentIndex = 0;
 
         while (currentIndex < totalChunks) {
-            while (chunkQueue.length < this.pipelineSize && currentIndex < totalChunks) {
-                const start = currentIndex * this.chunkSize;
-                const end = Math.min(start + this.chunkSize, file.size);
-                const chunk = file.slice(start, end);
+            const start = currentIndex * this.chunkSize;
+            const end = Math.min(start + this.chunkSize, file.size);
+            const chunk = file.slice(start, end);
 
-                const buffer = await this.readFileAsArrayBuffer(chunk);
+            const buffer = await this.readFileAsArrayBuffer(chunk);
 
-                const metadata = {
-                    op: 'upload_chunk',
-                    filename: file.name,
-                    file_id: fileId,
-                    index: currentIndex,
-                    total_chunks: totalChunks,
-                    size: buffer.byteLength
-                };
+            const metadata = {
+                op: 'upload_chunk',
+                filename: file.name,
+                file_id: fileId,
+                index: currentIndex,
+                total_chunks: totalChunks,
+                size: buffer.byteLength
+            };
 
-                this.wsClient.send(JSON.stringify(metadata));
-                this.wsClient.sendBinary(buffer);
+            this.wsClient.send(JSON.stringify(metadata));
+            this.wsClient.sendBinary(buffer);
 
-                chunkQueue.push(currentIndex);
-                currentIndex++;
+            currentIndex++;
 
-                uploadInfo.uploadedBytes = Math.min(currentIndex * this.chunkSize, file.size);
-                uploadInfo.uploadedChunks = Math.min(currentIndex, totalChunks);
-            }
+            uploadInfo.uploadedBytes = Math.min(currentIndex * this.chunkSize, file.size);
+            uploadInfo.uploadedChunks = currentIndex;
 
             uploadInfo.progress = Math.round((uploadInfo.uploadedBytes / file.size) * 100);
 
@@ -126,10 +120,6 @@ class FileUploader {
             }
 
             await this.delay(1);
-
-            if (chunkQueue.length > 0) {
-                chunkQueue.shift();
-            }
         }
     }
 
