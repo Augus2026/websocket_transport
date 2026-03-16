@@ -26,21 +26,11 @@ const STORAGE_DIR: &str = "./uploads";
 #[derive(Clone)]
 struct UploadStatus {
     filename: String,
-    file_id: String,
     total_chunks: usize,
     received_chunks: usize,
     total_size: u64,
     received_size: u64,
     chunks: HashMap<usize, Vec<u8>>,
-}
-
-#[derive(Clone)]
-struct DownloadStatus {
-    filename: String,
-    file_id: String,
-    total_chunks: usize,
-    sent_chunks: usize,
-    chunk_size: usize,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -120,23 +110,17 @@ enum ServerMessage {
         file_id: String,
         error: String,
     },
-    #[serde(rename = "error")]
-    Error {
-        error: String,
-    },
 }
 
 #[derive(Clone)]
 struct AppState {
     active_uploads: Arc<Mutex<HashMap<String, UploadStatus>>>,
-    active_downloads: Arc<Mutex<HashMap<String, DownloadStatus>>>,
 }
 
 impl AppState {
     fn new() -> Self {
         Self {
             active_uploads: Arc::new(Mutex::new(HashMap::new())),
-            active_downloads: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
@@ -185,7 +169,6 @@ async fn handle_message(
 
                         let upload_status = UploadStatus {
                             filename: filename.clone(),
-                            file_id: file_id.clone(),
                             total_chunks: chunks,
                             received_chunks: 0,
                             total_size: size,
@@ -276,20 +259,6 @@ async fn handle_message(
                                     let chunk_size = 64 * 1024;
                                     let total_chunks = (data.len() + chunk_size - 1) / chunk_size;
 
-                                    let download_status = DownloadStatus {
-                                        filename: filename.clone(),
-                                        file_id: file_id.clone(),
-                                        total_chunks,
-                                        sent_chunks: 0,
-                                        chunk_size,
-                                    };
-
-                                    state
-                                        .active_downloads
-                                        .lock()
-                                        .unwrap()
-                                        .insert(file_id.clone(), download_status);
-
                                     let response = ServerMessage::DownloadStart {
                                         filename: filename.clone(),
                                         size: file_size,
@@ -309,8 +278,6 @@ async fn handle_message(
                                         .send(Message::Text(serde_json::to_string(&response)?))
                                         .await?;
 
-                                    state.active_downloads.lock().unwrap().remove(&file_id);
-
                                     info!("complete: {}", filename);
                                 }
                                 Err(e) => {
@@ -328,17 +295,9 @@ async fn handle_message(
                     }
 
                     ClientMessage::DownloadCancel {
-                        file_id,
+                        file_id: _,
                     } => {
-                        let response = ServerMessage::DownloadError {
-                            file_id: file_id.clone(),
-                            error: "cancelled".to_string(),
-                        };
-                        sender
-                            .send(Message::Text(serde_json::to_string(&response)?))
-                            .await?;
-
-                        state.active_downloads.lock().unwrap().remove(&file_id);
+                        // Download cancelled - no state to clean up
                     }
                 }
             } else {
