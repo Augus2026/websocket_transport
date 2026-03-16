@@ -120,11 +120,9 @@ class FileDownloader {
 
             if (downloadInfo.fileStream) {
                 try {
-                    if(data instanceof ArrayBuffer) {
-                        const chunk_data = new Uint8Array(data);
-                        const writer = downloadInfo.fileStream;
-                        await writer.write(chunk_data);
-                    }
+                    const chunk_data = new Uint8Array(data);
+                    const writer = downloadInfo.fileStream;
+                    await writer.write(chunk_data);
                 } catch (error) {
                     console.error('Failed to write chunk to file stream:', error);
                 }
