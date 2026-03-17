@@ -3,9 +3,8 @@ class UIManager {
         this.connectionStatus = document.getElementById('connectionStatus');
         this.uploadArea = document.getElementById('uploadArea');
         this.fileInput = document.getElementById('fileInput');
-        this.filenameInput = document.getElementById('filenameInput');
-        this.downloadBtn = document.getElementById('downloadBtn');
         this.progressContainer = document.getElementById('progressContainer');
+        this.fileList = document.getElementById('fileList');
         this.progressItems = new Map();
         this.onFileSelect = null;
         this.onDownloadRequest = null;
@@ -44,19 +43,6 @@ class UIManager {
             }
         });
 
-        this.downloadBtn.addEventListener('click', () => {
-            const filename = this.filenameInput.value.trim();
-            if (filename && this.onDownloadRequest) {
-                this.onDownloadRequest(filename);
-            }
-        });
-
-        this.filenameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.filenameInput.blur();
-                this.downloadBtn.click();
-            }
-        });
     }
 
     updateConnectionStatus(connected) {
@@ -186,6 +172,44 @@ class UIManager {
 
     setCancelHandler(handler) {
         this.onCancel = handler;
+    }
+
+    displayFileList(files) {
+        if (!files || files.length === 0) {
+            this.fileList.innerHTML = '<div class="empty-message">暂无文件</div>';
+            return;
+        }
+
+        const filesHtml = files.map(file => `
+            <div class="file-item">
+                <div class="file-info">
+                    <div class="file-name">${this.escapeHtml(file.name)}</div>
+                    <div class="file-size">${this.formatSize(file.size)}</div>
+                </div>
+                <button class="download-btn" data-filename="${this.escapeHtml(file.name)}">下载</button>
+            </div>
+        `).join('');
+
+        this.fileList.innerHTML = filesHtml;
+
+        this.fileList.querySelectorAll('.download-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const filename = e.target.dataset.filename;
+                if (this.onDownloadRequest) {
+                    this.onDownloadRequest(filename);
+                }
+            });
+        });
+    }
+
+    showFileListError() {
+        this.fileList.innerHTML = '<div class="empty-message">加载文件列表失败</div>';
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 }
 

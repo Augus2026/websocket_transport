@@ -6,7 +6,7 @@ class FileDownloader {
         this.onError = onError;
         this.activeDownloads = new Map();
         this.streamSaver = window.streamSaver || null;
-        this.chunkBufferSize = 128 * 1024;
+        this.chunkBufferSize = 1 * 1024 * 1024;
         this.progressUpdateInterval = 10;
     }
 

@@ -26,7 +26,7 @@ class App {
 
     getWebSocketUrl() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.hostname;
+        const host = window.location.hostname || 'localhost';
         const port = ':9090';
         return `${protocol}//${host}${port}/ws`;
     }
@@ -46,6 +46,8 @@ class App {
         this.ui.setDownloadRequestHandler((filename) => {
             this.downloadFile(filename);
         });
+
+        this.loadFileList();
 
         this.ui.setCancelHandler((fileId, type) => {
             if (type === 'upload') {
@@ -182,6 +184,18 @@ class App {
 
     onDownloadError(fileId, error) {
         console.error('Download error:', error);
+    }
+
+    async loadFileList() {
+        try {
+            const response = await fetch('http://localhost:9090/files');
+            const files = await response.json();
+
+            this.ui.displayFileList(files);
+        } catch (error) {
+            console.error('Failed to load file list:', error);
+            this.ui.showFileListError();
+        }
     }
 
     start() {

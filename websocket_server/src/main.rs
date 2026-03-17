@@ -4,6 +4,7 @@ use axum::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         State,
     },
+    http::header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue},
     response::IntoResponse,
     routing::get,
     Router,
@@ -414,66 +415,17 @@ async fn list_files(State(_state): State<AppState>) -> impl IntoResponse {
         }
     }
 
-    axum::response::Html(format!(
-        r#"<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>文件列表</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; padding: 20px; }}
-        h1 {{ color: #333; }}
-        ul {{ list-style: none; padding: 0; }}
-        li {{
-            padding: 10px;
-            margin: 5px 0;
-            background: #f5f5f5;
-            border-radius: 5px;
-            display: flex;
-            justify-content: space-between;
-        }}
-        .size {{ color: #666; }}
-    </style>
-</head>
-<body>
-    <h1>服务器文件列表</h1>
-    <ul>
-        {}
-    </ul>
-</body>
-</html>"#,
-        files
-            .iter()
-            .map(|f| format!(
-                "<li><strong>{}</strong><span class='size'>{}</span></li>",
-                f.name,
-                format_size(f.size)
-            ))
-            .collect::<Vec<_>>()
-            .join("")
-    ))
+    let mut response = axum::Json(files).into_response();
+    response.headers_mut().insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+    response.headers_mut().insert(ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("GET, POST, OPTIONS"));
+    response.headers_mut().insert(ACCESS_CONTROL_ALLOW_HEADERS, HeaderValue::from_static("*"));
+    response
 }
 
 #[derive(Serialize)]
 struct FileInfo {
     name: String,
     size: u64,
-}
-
-fn format_size(bytes: u64) -> String {
-    const KB: u64 = 1024;
-    const MB: u64 = KB * 1024;
-    const GB: u64 = MB * 1024;
-
-    if bytes < KB {
-        format!("{} B", bytes)
-    } else if bytes < MB {
-        format!("{:.2} KB", bytes as f64 / KB as f64)
-    } else if bytes < GB {
-        format!("{:.2} MB", bytes as f64 / MB as f64)
-    } else {
-        format!("{:.2} GB", bytes as f64 / GB as f64)
-    }
 }
 
 #[tokio::main]

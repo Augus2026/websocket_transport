@@ -4,7 +4,7 @@ class FileUploader {
         this.onProgress = onProgress;
         this.onComplete = onComplete;
         this.onError = onError;
-        this.chunkSize = 128 * 1024;
+        this.chunkSize = 1 * 1024 * 1024;
         this.activeUploads = new Map();
     }
 
