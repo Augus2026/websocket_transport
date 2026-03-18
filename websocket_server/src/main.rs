@@ -257,7 +257,7 @@ async fn handle_message(
                             match tokio::fs::read(&file_path).await {
                                 Ok(data) => {
                                     let file_size = data.len() as u64;
-                                    let chunk_size = 64 * 1024;
+                                    let chunk_size: usize = (0.5 * 1024.0 * 1024.0) as usize; // 0.5MB
                                     let total_chunks = (data.len() + chunk_size - 1) / chunk_size;
 
                                     let response = ServerMessage::DownloadStart {

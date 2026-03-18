@@ -6,7 +6,6 @@ class FileDownloader {
         this.onError = onError;
         this.activeDownloads = new Map();
         this.streamSaver = window.streamSaver || null;
-        this.chunkBufferSize = 1 * 1024 * 1024;
         this.progressUpdateInterval = 10;
     }
 
@@ -70,6 +69,7 @@ class FileDownloader {
             downloadInfo.lastReceivedBytes = 0;
 
             try {
+                streamSaver.mitm = 'https://dev-web-rd.7x-networks.net/streamsaver/mitm.html';
                 const fileStream = streamSaver.createWriteStream(downloadInfo.filename);
                 downloadInfo.fileStream = fileStream.getWriter();
             } catch (error) {

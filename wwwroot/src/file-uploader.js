@@ -4,7 +4,7 @@ class FileUploader {
         this.onProgress = onProgress;
         this.onComplete = onComplete;
         this.onError = onError;
-        this.chunkSize = 1 * 1024 * 1024;
+        this.chunkSize = 0.5 * 1024 * 1024;
         this.activeUploads = new Map();
     }
 
@@ -118,8 +118,6 @@ class FileUploader {
             if (this.onProgress) {
                 this.onProgress(fileId, uploadInfo);
             }
-
-            await this.delay(1);
         }
     }
 
@@ -134,10 +132,6 @@ class FileUploader {
 
     generateFileId() {
         return 'upload_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
-    }
-
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     cancelUpload(fileId) {
