@@ -1,65 +1,132 @@
-# WebSocket 文件传输服务器
+# WebSocket 文件传输系统
 
-基于 Rust 和 Axum 框架的 WebSocket 文件传输服务器。
+一个完整的基于 WebSocket 的文件传输系统，包含 Rust 后端和 JavaScript 前端。
+
+## 项目结构
+
+```
+file_transport_test/
+├── websocket_server/          # Rust WebSocket 服务器
+│   ├── Cargo.toml
+│   ├── src/main.rs
+│   ├── start.sh             # 启动服务器脚本
+│   └── README.md
+├── wwwroot/               # 前端项目
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── index.html           # 主页面
+│   ├── test.html           # 测试页面
+│   ├── src/
+│   │   ├── main.js
+│   │   ├── websocket-client.js
+│   │   ├── file-uploader.js
+│   │   ├── file-downloader.js
+│   │   └── ui.js
+│   └── public/
+│       └── StreamSaver.min.js
+├── run_all.sh            # 同时启动前后端
+└── README.md             # 本文件
+```
 
 ## 功能特性
 
-- 支持 WebSocket 双向文件传输
-- 文件上传（分块传输）
-- 文件下载（流式传输）
-- 文件列表查看
-- 传输进度跟踪
-- 支持大文件传输（64KB 分块）
+### 服务器端
+- ✅ 基于 Rust 和 Axum 框架
+- ✅ WebSocket 双向通信
+- ✅ 文件上传（分块传输）
+- ✅ 文件下载（流式传输）
+- ✅ 文件列表查看
+- ✅ 传输进度跟踪
+- ✅ 错误处理
 
-## 技术栈
+### 前端
+- ✅ 纯 JavaScript，无框架依赖
+- ✅ 文件上传（拖拽支持）
+- ✅ 文件下载（使用 StreamSaver.js）
+- ✅ 实时进度显示
+- ✅ 美观的 UI 设计
+- ✅ 自动重连机制
 
-- **Tokio** - 异步运行时
-- **Axum** - Web 框架
-- **Tokio-tungstenite** - WebSocket 支持
-- **Serde** - JSON 序列化/反序列化
-- **Tracing** - 日志记录
+## 快速开始
 
-## 构建和运行
-
-### 开发环境
+### 方式一：使用自动启动脚本（推荐）
 
 ```bash
-# 进入服务器目录
+cd /root/workspace/file_transport_test
+./run_all.sh
+```
+
+这将同时启动 WebSocket 服务器和前端开发服务器。
+
+### 方式二：手动启动
+
+1. **启动 WebSocket 服务器**：
+
+```bash
+cd /root/workspace/file_transport_test/websocket_server
+./start.sh
+```
+
+服务器将在 `ws://localhost:8080/ws` 启动。
+
+2. **启动前端开发服务器**：
+
+```bash
+cd /root/workspace/file_transport_test/wwwroot
+npm run dev
+```
+
+前端将在 `http://localhost:3000`（或 3001）启动。
+
+### 方式三：生产构建
+
+1. **构建 WebSocket 服务器**：
+
+```bash
 cd websocket_server
-
-# 构建（开发版本）
-cargo build
-
-# 运行
-cargo run
-
-# 或者使用 debug 模式运行
-cargo run --bin websocket_server
+cargo build --release
 ```
 
-### 生产环境
+2. **构建前端**：
 
 ```bash
-# 构建优化版本
-cargo build --release
-
-# 运行优化版本
-./target/release/websocket_server
+cd ../wwwroot
+npm run build
 ```
 
-## 配置
+构建的文件将输出到 `wwwroot/dist/` 目录。
 
-服务器默认配置：
-- **监听地址**: `0.0.0.0:8080`
-- **WebSocket 路径**: `/ws`
-- **文件列表路径**: `/files`
-- **文件存储目录**: `./uploads`
+## 访问地址
+
+- **前端页面**: `http://localhost:3000`（或 3001）
+- **测试页面**: `http://localhost:3000/test.html`
+- **WebSocket**: `ws://localhost:8080/ws`
+- **文件列表**: `http://localhost:8080/files`
+
+## 使用说明
+
+### 上传文件
+
+1. 打开前端页面
+2. 等待 WebSocket 连接建立
+3. 拖拽文件到上传区域或点击选择文件
+4. 查看上传进度
+
+### 下载文件
+
+1. 在"下载文件"区域输入文件名
+2. 点击"下载"按钮
+3. 查看下载进度
+
+### 查看服务器文件
+
+访问 `http://localhost:8080/files` 查看所有已上传的文件。
 
 ## WebSocket 协议
 
 ### 上传协议
 
-1. 开始上传:
+1. 开始上传：
 ```json
 {
   "op": "upload_start",
@@ -70,7 +137,7 @@ cargo build --release
 }
 ```
 
-2. 发送块:
+2. 发送块：
 ```json
 {
   "op": "upload_chunk",
@@ -83,7 +150,7 @@ cargo build --release
 ```
 （随后发送二进制数据）
 
-3. 结束上传:
+3. 结束上传：
 ```json
 {
   "op": "upload_end",
@@ -94,7 +161,7 @@ cargo build --release
 
 ### 下载协议
 
-1. 下载请求:
+1. 下载请求：
 ```json
 {
   "op": "download_request",
@@ -103,7 +170,7 @@ cargo build --release
 }
 ```
 
-2. 下载开始 (服务器响应):
+2. 下载开始（服务器响应）：
 ```json
 {
   "op": "download_start",
@@ -114,7 +181,7 @@ cargo build --release
 }
 ```
 
-3. 发送块 (服务器发送):
+3. 发送块（服务器发送）：
 ```json
 {
   "op": "download_chunk",
@@ -125,7 +192,7 @@ cargo build --release
 ```
 （随后发送二进制数据）
 
-4. 下载结束 (服务器响应):
+4. 下载结束（服务器响应）：
 ```json
 {
   "op": "download_end",
@@ -133,61 +200,65 @@ cargo build --release
 }
 ```
 
-## 使用示例
+## 配置
 
-### 1. 启动服务器
+### 服务器配置
 
-```bash
-cd websocket_server
-cargo run
-```
+编辑 `websocket_server/src/main.rs` 修改：
 
-服务器将输出：
-```
-WebSocket 文件传输服务器启动于: 0.0.0.0:8080
-文件存储目录: ./uploads
-文件列表页面: http://0.0.0.0:8080/files
-```
+- `SERVER_ADDR`: 服务器监听地址（默认：`0.0.0.0:8080`）
+- `STORAGE_DIR`: 文件存储目录（默认：`./uploads`）
 
-### 2. 访问文件列表
+### 前端配置
 
-在浏览器中打开: `http://localhost:8080/files`
+编辑 `wwwroot/src/main.js` 修改：
 
-### 3. 使用前端
+- WebSocket 地址会自动根据当前页面 URL 生成
 
-在 `wwwroot` 目录中启动前端：
+## 故障排除
 
-```bash
-cd ../wwwroot
-npm run dev
-```
+### 端口被占用
 
-然后在浏览器中打开前端页面进行文件传输。
+如果 8080 或 3000 端口被占用，启动脚本会自动停止占用进程。
 
-## 目录结构
+### 文件存储目录
 
-```
-websocket_server/
-├── Cargo.toml          # Rust 项目配置
-├── src/
-│   └── main.rs         # 主程序
-├── uploads/            # 文件存储目录（自动创建）
-└── README.md           # 本文件
-```
+确保 `uploads` 目录有写入权限。
 
-## 日志
+### WebSocket 连接失败
 
-服务器使用 `tracing` 库记录日志，默认输出 INFO 级别日志。
+1. 检查服务器是否正常运行
+2. 检查防火墙设置
+3. 查看浏览器控制台错误信息
 
-## 性能优化
+### StreamSaver.js 不工作
 
-- 使用 64KB 分块大小以平衡内存使用和传输效率
-- 异步 I/O 处理多个并发连接
-- 互斥锁保护共享状态
+StreamSaver.js 需要：
+- 现代 Web 浏览器
+- HTTPS 或 localhost
+- Service Worker 支持
 
-## 安全注意事项
+如果不可用，系统会自动降级到 Blob 下载方式。
 
-⚠️ **注意**: 此服务器示例不包含以下安全特性，生产环境使用时应添加：
+## 依赖
+
+### 服务器端
+
+- Rust 1.84+
+- Tokio
+- Axum
+- Serde
+- Tungstenite
+
+### 前端
+
+- Node.js
+- Vite
+- StreamSaver.js
+
+## 安全提示
+
+⚠️ **警告**: 此项目是演示版本，生产环境使用前请添加：
 
 - 用户认证和授权
 - 文件大小限制
@@ -197,16 +268,6 @@ websocket_server/
 - HTTPS 支持
 - 输入验证和清理
 
-## 故障排除
+## 许可证
 
-### 端口占用
-
-如果 8080 端口被占用，修改 `src/main.rs` 中的 `SERVER_ADDR` 常量。
-
-### 文件权限
-
-确保 `uploads` 目录有写入权限。
-
-### 连接问题
-
-检查防火墙设置，确保 WebSocket 端口可访问。
+MIT License

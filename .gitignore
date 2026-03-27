@@ -2,3 +2,4 @@ websocket_server/target/*
 wwwroot/node_modules/*
 websocket_server/uploads/*
 wwwroot/dist/*
+p2p_sdk/target/*
