@@ -1,13 +1,13 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tcp_p2p_server::{
+use crate::{
     config,
     error::Result,
     message::Message,
     network::{receive_udp, send_udp},
     registry::{PeerRegistry, RelaySessionRegistry},
-    RelayTask,
 };
+use crate::RelayTask;
 use tokio::net::UdpSocket;
 use tokio::sync::{broadcast, mpsc, Mutex};
 
@@ -157,8 +157,7 @@ async fn notify_relay_rejected(
     println!("Relay rejected: {} -> {} ({})", from_peer, to_peer, reason);
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+pub async fn run_server() -> Result<()> {
     println!("Server starting...");
     println!("UDP: {}", config::DEFAULT_UDP_ADDR);
 

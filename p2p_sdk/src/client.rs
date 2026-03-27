@@ -1,4 +1,4 @@
-use tcp_p2p_server::{
+use crate::{
     config,
     error::Result,
     message::Message,
@@ -105,8 +105,7 @@ async fn handle_message(
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+pub async fn run_client() -> Result<()> {
     println!("Starting P2P client...");
 
     let ClientState {

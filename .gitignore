@@ -3,3 +3,7 @@ wwwroot/node_modules/*
 websocket_server/uploads/*
 wwwroot/dist/*
 p2p_sdk/target/*
+p2p_sdk/.claude/*
+p2p_sdk/.specify/*
+p2p_sdk/specs/*
+.claude/*

@@ -2,6 +2,8 @@ pub mod error;
 pub mod message;
 pub mod network;
 pub mod registry;
+pub mod server;
+pub mod client;
 
 pub use error::{P2PError, Result};
 pub use message::{Message, PeerInfo};
