@@ -7,6 +7,11 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process;
 
+use p2p_sdk::{
+    Protocol, WsServer, WsServerConfig, WsClientConfig,
+    HeartbeatConfig, ReconnectConfig, run_ws_client,
+};
+
 /// P2P SDK - P2P Communication Server/Client
 #[derive(Parser, Debug)]
 #[command(name = "p2p_sdk")]
@@ -124,19 +129,14 @@ async fn run_server(
     key: Option<PathBuf>,
     verbose: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use p2p_sdk::websocket::protocol::Protocol;
-    use p2p_sdk::websocket::server::{WsServer, WsServerConfig};
-
     // 解析协议
     let protocol: Protocol = protocol
         .parse()
         .map_err(|e: String| format!("协议错误: {}", e))?;
 
     // 验证 wss 模式需要证书
-    if protocol == Protocol::Wss {
-        if cert.is_none() || key.is_none() {
-            return Err("wss 模式需要 --cert 和 --key 参数".into());
-        }
+    if protocol == Protocol::Wss && (cert.is_none() || key.is_none()) {
+        return Err("wss 模式需要 --cert 和 --key 参数".into());
     }
 
     // 解析地址
@@ -237,10 +237,6 @@ async fn run_client(
     insecure: bool,
     verbose: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use p2p_sdk::websocket::client::{run_ws_client, WsClientConfig};
-    use p2p_sdk::websocket::config::{HeartbeatConfig, ReconnectConfig};
-    use p2p_sdk::websocket::protocol::Protocol;
-
     // 解析协议
     let protocol: Protocol = protocol
         .parse()

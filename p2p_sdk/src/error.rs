@@ -19,8 +19,6 @@ pub enum P2PError {
     ConnectionClosed,
     #[error("UDP address not available for peer: {peer_id}")]
     UdpAddressNotAvailable { peer_id: String },
-    #[error("Relay session error: {reason}")]
-    RelaySessionError { reason: String },
     #[error("Channel error: {0}")]
     ChannelError(String),
     #[error("Configuration error: {0}")]
@@ -43,12 +41,6 @@ impl From<io::Error> for P2PError {
         } else {
             P2PError::Io(e)
         }
-    }
-}
-
-impl From<tokio::sync::mpsc::error::SendError<crate::RelayTask>> for P2PError {
-    fn from(_: tokio::sync::mpsc::error::SendError<crate::RelayTask>) -> Self {
-        P2PError::ChannelError("Failed to send relay task".to_string())
     }
 }
 

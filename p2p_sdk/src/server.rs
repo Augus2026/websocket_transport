@@ -4,15 +4,15 @@
 
 use crate::error::{P2PError, Result};
 use crate::message::Message;
-use crate::websocket::protocol::Protocol;
-use crate::websocket::state::{ConnectionState, StateEmitter};
+use crate::protocol::Protocol;
+use crate::state::ConnectionState;
 use futures_util::{SinkExt, StreamExt};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::net::TcpListener;
-use tokio::sync::{RwLock, broadcast};
+use tokio::sync::{Mutex, RwLock, broadcast};
 use tokio_tungstenite::{
     WebSocketStream, accept_async, tungstenite::protocol::Message as WsMessage,
 };
@@ -66,11 +66,11 @@ pub struct WsServer {
     config: WsServerConfig,
     /// 会话注册表
     sessions: Arc<RwLock<HashMap<String, ServerSession>>>,
-    /// 状态发射器
-    state: Arc<tokio::sync::Mutex<StateEmitter>>,
+    /// 当前状态
+    state: Arc<Mutex<ConnectionState>>,
     /// 消息广播通道
     broadcast_tx: broadcast::Sender<Message>,
-    /// 连接数统计（使用 AtomicUsize 支持同步访问）
+    /// 连接数统计
     connection_count: Arc<AtomicUsize>,
 }
 
@@ -81,7 +81,7 @@ impl WsServer {
         Self {
             config,
             sessions: Arc::new(RwLock::new(HashMap::new())),
-            state: Arc::new(tokio::sync::Mutex::new(StateEmitter::new())),
+            state: Arc::new(Mutex::new(ConnectionState::Disconnected)),
             broadcast_tx,
             connection_count: Arc::new(AtomicUsize::new(0)),
         }
@@ -107,9 +107,7 @@ impl WsServer {
         let tls_acceptor = if self.config.protocol == Protocol::Wss {
             let cert_path = self.config.cert_path.as_ref().unwrap();
             let key_path = self.config.key_path.as_ref().unwrap();
-            Some(crate::websocket::tls::create_server_tls_acceptor(
-                cert_path, key_path,
-            )?)
+            Some(crate::tls::create_server_tls_acceptor(cert_path, key_path)?)
         } else {
             None
         };
@@ -130,10 +128,8 @@ impl WsServer {
         println!("[INFO] 监听地址: {}", url);
         println!("[INFO] 等待客户端连接...");
 
-        {
-            let mut state = self.state.lock().await;
-            state.set_connected();
-        }
+        // 设置状态为已连接
+        *self.state.lock().await = ConnectionState::Connected;
 
         // 接受连接循环
         loop {
@@ -177,7 +173,7 @@ impl WsServer {
 
     /// 获取当前状态
     pub async fn state(&self) -> ConnectionState {
-        self.state.lock().await.current().clone()
+        self.state.lock().await.clone()
     }
 
     /// 订阅消息

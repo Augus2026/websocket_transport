@@ -2,12 +2,12 @@
 //!
 //! 提供 ws 和 wss 协议的 WebSocket 客户端
 
+use crate::config::HeartbeatConfig;
 use crate::error::{P2PError, Result};
 use crate::message::Message;
-use crate::websocket::config::{HeartbeatConfig, ReconnectConfig};
-use crate::websocket::protocol::Protocol;
-use crate::websocket::reconnect::ReconnectState;
-use crate::websocket::state::{ConnectionState, StateEmitter};
+use crate::protocol::Protocol;
+use crate::reconnect::{ReconnectConfig, calculate_wait_time, should_retry};
+use crate::state::ConnectionState;
 use futures_util::{SinkExt, StreamExt};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering as AtomicOrdering};
 use std::sync::Arc;
@@ -29,7 +29,7 @@ pub struct WsClientConfig {
     /// 跳过证书验证
     pub insecure: bool,
     /// 重连配置
-    pub reconnect: ReconnectConfig,
+    pub reconnect: crate::reconnect::ReconnectConfig,
     /// 心跳配置
     pub heartbeat: HeartbeatConfig,
     /// 详细日志
@@ -63,10 +63,8 @@ impl WsClientConfig {
 pub struct WsClient {
     /// 配置
     pub config: WsClientConfig,
-    /// 状态发射器
-    state: StateEmitter,
-    /// 重连状态
-    reconnect_state: ReconnectState,
+    /// 当前状态
+    state: ConnectionState,
     /// 消息发送通道（外部使用）
     input_tx: broadcast::Sender<WsMessage>,
     /// 接收消息广播
@@ -80,12 +78,10 @@ impl WsClient {
     pub fn new(config: WsClientConfig) -> Self {
         let (message_tx, _) = broadcast::channel(1024);
         let (input_tx, _) = broadcast::channel(256);
-        let reconnect_state = ReconnectState::new(config.reconnect.clone());
         let connected = Arc::new(AtomicBool::new(false));
         Self {
             config,
-            state: StateEmitter::new(),
-            reconnect_state,
+            state: ConnectionState::Disconnected,
             input_tx,
             message_tx,
             connected,
@@ -97,18 +93,63 @@ impl WsClient {
         self.input_tx.clone()
     }
 
-    /// 连接到服务端
+    /// 连接到服务端（带重连）
     pub async fn connect(&mut self) -> Result<()> {
-        self.state.set_connecting();
+        let mut attempt: u32 = 0;
+
+        loop {
+            attempt += 1;
+
+            // 检查是否应该重试
+            if !should_retry(&self.config.reconnect, attempt) {
+                return Err(P2PError::ConnectionFailed(
+                    "超过最大重连次数".to_string(),
+                ));
+            }
+
+            // 计算等待时间（第一次不等待）
+            if attempt > 1 {
+                let wait = calculate_wait_time(&self.config.reconnect, attempt);
+                if self.config.verbose {
+                    println!("[重连] 第 {} 次尝试，等待 {} 秒", attempt, wait);
+                }
+                tokio::time::sleep(Duration::from_secs(wait)).await;
+            }
+
+            // 尝试连接
+            self.state = ConnectionState::Connecting;
+            let url = self.config.build_url("ws");
+
+            if self.config.verbose {
+                println!("[状态] 连接中 -> {}", url);
+            }
+
+            match self.try_connect().await {
+                Ok(()) => {
+                    // 连接正常断开
+                    if self.config.verbose {
+                        println!("[系统] 连接正常断开");
+                    }
+                    return Ok(());
+                }
+                Err(e) => {
+                    if self.config.verbose {
+                        eprintln!("[错误] 连接失败: {}", e);
+                    }
+                    self.state = ConnectionState::Error {
+                        message: e.to_string(),
+                    };
+                    // 继续重连循环
+                }
+            }
+        }
+    }
+
+    /// 尝试单次连接
+    async fn try_connect(&mut self) -> Result<()> {
         let url = self.config.build_url("ws");
 
-        if self.config.verbose {
-            println!("[状态] 连接中 -> {}", url);
-        }
-
-        // 简化连接：直接使用 connect_async
         let (ws_stream, _) = connect_async(&url).await.map_err(|e| {
-            self.state.set_error(format!("连接失败: {}", e));
             P2PError::ConnectionFailed(format!("连接失败: {}", e))
         })?;
 
@@ -119,8 +160,7 @@ impl WsClient {
             }
         }
 
-        self.state.set_connected();
-        self.reconnect_state.reset();
+        self.state = ConnectionState::Connected;
         self.connected.store(true, AtomicOrdering::Relaxed);
 
         // 启动消息循环
@@ -251,7 +291,7 @@ impl WsClient {
         }
 
         // 连接断开
-        self.state.set_disconnected();
+        self.state = ConnectionState::Disconnected;
         self.connected.store(false, AtomicOrdering::Relaxed);
 
         if self.config.verbose {
@@ -268,7 +308,7 @@ impl WsClient {
 
     /// 获取当前状态
     pub fn state(&self) -> &ConnectionState {
-        self.state.current()
+        &self.state
     }
 
     /// 是否已连接
