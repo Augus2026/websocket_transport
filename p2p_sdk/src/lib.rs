@@ -1,9 +1,7 @@
-pub mod client;
 pub mod error;
 pub mod message;
 pub mod network;
 pub mod registry;
-pub mod server;
 pub mod websocket;
 
 pub use error::{P2PError, Result};

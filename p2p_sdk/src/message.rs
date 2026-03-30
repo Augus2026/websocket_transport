@@ -26,10 +26,6 @@ pub enum Message {
     PeerListReady {
         peers: Vec<PeerInfo>,
     },
-    Chat {
-        sender_id: String,
-        content: String,
-    },
     PunchRequest {
         from_peer: String,
         to_peer: String,
@@ -47,6 +43,10 @@ pub enum Message {
     RelayReady {
         from_peer: String,
         to_peer: String,
+    },
+    Chat {
+        sender_id: String,
+        content: String,
     },
     PrivateMessage {
         from_peer: String,
