@@ -11,3 +11,12 @@ thiserror = "2.0"
 uuid = { version = "1.11", features = ["v4", "serde"] }
 dirs = "5.0"
 toml = "0.8"
+chrono = "0.4"
+
+# WebSocket 依赖
+tokio-tungstenite = "0.24"
+tokio-rustls = "0.26"
+rustls-pemfile = "2.2"
+clap = { version = "4.5", features = ["derive"] }
+rand = "0.8"
+futures-util = "0.3"

@@ -25,6 +25,15 @@ pub enum P2PError {
     ChannelError(String),
     #[error("Configuration error: {0}")]
     ConfigError(String),
+    // WebSocket 相关错误
+    #[error("WebSocket error: {0}")]
+    WebSocket(String),
+    #[error("TLS error: {0}")]
+    Tls(String),
+    #[error("Connection failed: {0}")]
+    ConnectionFailed(String),
+    #[error("Protocol mismatch: {0}")]
+    ProtocolMismatch(String),
 }
 
 impl From<io::Error> for P2PError {

@@ -1,0 +1,21 @@
+# Rust
+/target/
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# TLS 证书文件
+*.pem
+*.key
+*.crt
+
+# 日志文件
+*.log
+
+# 操作系统
+.DS_Store
+Thumbs.db

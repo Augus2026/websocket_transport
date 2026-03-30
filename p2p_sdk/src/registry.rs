@@ -62,7 +62,11 @@ impl RelaySessionRegistry {
             "relay-{}-{}-{}",
             &peer_a.chars().take(8).collect::<String>(),
             &peer_b.chars().take(8).collect::<String>(),
-            &uuid::Uuid::new_v4().to_string().chars().take(8).collect::<String>()
+            &uuid::Uuid::new_v4()
+                .to_string()
+                .chars()
+                .take(8)
+                .collect::<String>()
         );
 
         let session = RelaySession {
@@ -104,8 +108,7 @@ impl RelaySessionRegistry {
 
     pub fn get_session_for_peers(&self, peer_a: &str, peer_b: &str) -> Option<&RelaySession> {
         self.sessions.values().find(|s| {
-            (s.peer_a == peer_a && s.peer_b == peer_b)
-                || (s.peer_a == peer_b && s.peer_b == peer_a)
+            (s.peer_a == peer_a && s.peer_b == peer_b) || (s.peer_a == peer_b && s.peer_b == peer_a)
         })
     }
 
@@ -133,7 +136,10 @@ impl RelaySessionRegistry {
     }
 
     pub fn active_session_count(&self) -> usize {
-        self.sessions.values().filter(|s| s.state.is_active()).count()
+        self.sessions
+            .values()
+            .filter(|s| s.state.is_active())
+            .count()
     }
 
     pub fn cleanup_closed(&mut self) {

@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 
 pub mod defaults {
     pub const DEFAULT_TCP_ADDR: &str = "127.0.0.1:8080";
-    pub const DEFAULT_UDP_ADDR: &str = "127.0.0.1:8081";
     pub const BROADCAST_CAPACITY: usize = 1000;
     pub const RELAY_CHANNEL_CAPACITY: usize = 100;
     pub const DISPLAY_CHANNEL_CAPACITY: usize = 100;
@@ -14,22 +13,28 @@ pub mod defaults {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
     pub tcp_addr: String,
-    pub udp_addr: String,
     pub broadcast_capacity: usize,
     pub relay_channel_capacity: usize,
     pub max_message_size: usize,
     pub verbose: bool,
+    // WebSocket 配置
+    #[serde(default)]
+    pub protocol: String,
+    pub cert_path: Option<String>,
+    pub key_path: Option<String>,
 }
 
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
             tcp_addr: defaults::DEFAULT_TCP_ADDR.to_string(),
-            udp_addr: defaults::DEFAULT_UDP_ADDR.to_string(),
             broadcast_capacity: defaults::BROADCAST_CAPACITY,
             relay_channel_capacity: defaults::RELAY_CHANNEL_CAPACITY,
             max_message_size: defaults::MAX_MESSAGE_SIZE,
             verbose: false,
+            protocol: "ws".to_string(),
+            cert_path: None,
+            key_path: None,
         }
     }
 }
@@ -37,26 +42,39 @@ impl Default for ServerConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientConfig {
     pub server_tcp_addr: String,
-    pub server_udp_addr: String,
-    pub local_udp_addr: String,
     pub display_channel_capacity: usize,
     pub max_message_size: usize,
     pub verbose: bool,
     pub auto_connect: bool,
-    pub enable_p2p: bool,
+    // WebSocket 配置
+    #[serde(default)]
+    pub protocol: String,
+    pub ca_path: Option<String>,
+    #[serde(default)]
+    pub insecure: bool,
+    // 重连配置
+    #[serde(default = "default_reconnect_interval")]
+    pub reconnect_interval: u64,
+    #[serde(default = "default_reconnect_max")]
+    pub reconnect_max: u64,
 }
+
+fn default_reconnect_interval() -> u64 { 1 }
+fn default_reconnect_max() -> u64 { 30 }
 
 impl Default for ClientConfig {
     fn default() -> Self {
         Self {
             server_tcp_addr: defaults::DEFAULT_TCP_ADDR.to_string(),
-            server_udp_addr: defaults::DEFAULT_UDP_ADDR.to_string(),
-            local_udp_addr: "0.0.0.0:0".to_string(),
             display_channel_capacity: defaults::DISPLAY_CHANNEL_CAPACITY,
             max_message_size: defaults::MAX_MESSAGE_SIZE,
             verbose: false,
             auto_connect: true,
-            enable_p2p: true,
+            protocol: "ws".to_string(),
+            ca_path: None,
+            insecure: false,
+            reconnect_interval: default_reconnect_interval(),
+            reconnect_max: default_reconnect_max(),
         }
     }
 }
@@ -153,15 +171,12 @@ mod tests {
     fn test_default_server_config() {
         let config = ServerConfig::default();
         assert_eq!(config.tcp_addr, defaults::DEFAULT_TCP_ADDR);
-        assert_eq!(config.udp_addr, defaults::DEFAULT_UDP_ADDR);
     }
 
     #[test]
     fn test_default_client_config() {
         let config = ClientConfig::default();
         assert_eq!(config.server_tcp_addr, defaults::DEFAULT_TCP_ADDR);
-        assert_eq!(config.server_udp_addr, defaults::DEFAULT_UDP_ADDR);
         assert!(config.auto_connect);
-        assert!(config.enable_p2p);
     }
 }

@@ -15,21 +15,44 @@ impl PeerInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Message {
-    PeerJoin { peer_id: String, peer_addr: String },
-    PeerLeave { peer_id: String },
+    PeerJoin {
+        peer_id: String,
+        peer_addr: String,
+    },
+    PeerLeave {
+        peer_id: String,
+    },
     PeerListRequest,
-    PeerListReady { peers: Vec<PeerInfo> },
-    Chat { sender_id: String, content: String },
-    PunchRequest { from_peer: String, to_peer: String },
+    PeerListReady {
+        peers: Vec<PeerInfo>,
+    },
+    Chat {
+        sender_id: String,
+        content: String,
+    },
+    PunchRequest {
+        from_peer: String,
+        to_peer: String,
+    },
     PunchReady {
         peer_a: PeerInfo,
         peer_a_udp: String,
         peer_b: PeerInfo,
         peer_b_udp: String,
     },
-    RelayRequest { from_peer: String, to_peer: String },
-    RelayReady { from_peer: String, to_peer: String },
-    PrivateMessage { from_peer: String, to_peer: String, content: String },
+    RelayRequest {
+        from_peer: String,
+        to_peer: String,
+    },
+    RelayReady {
+        from_peer: String,
+        to_peer: String,
+    },
+    PrivateMessage {
+        from_peer: String,
+        to_peer: String,
+        content: String,
+    },
 }
 
 impl Message {
@@ -100,7 +123,9 @@ mod tests {
         };
         assert_eq!(msg.sender_id(), Some("peer-1"));
 
-        let msg = Message::PeerLeave { peer_id: "peer-1".to_string() };
+        let msg = Message::PeerLeave {
+            peer_id: "peer-1".to_string(),
+        };
         assert_eq!(msg.sender_id(), None);
     }
 }
