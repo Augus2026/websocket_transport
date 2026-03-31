@@ -25,28 +25,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn create_tun_device() -> Result<tun2::AsyncDevice, Box<dyn std::error::Error>> {
     let mut config = TunConfig::default();
     config.tun_name("tun0");
-
-    #[cfg(target_os = "linux")]
-    {
-        config.address("10.0.0.1");
-        config.netmask("255.255.255.0");
-        config.destination("10.0.0.2");
-        config.mtu(1500);
-        config.up();
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        config.mtu(1500);
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        config.address("10.0.0.1");
-        config.netmask("255.255.255.0");
-        config.destination("10.0.0.2");
-        config.mtu(1500);
-    }
+    config.address("10.0.0.1");
+    config.netmask("255.255.255.0");
+    config.destination("10.0.0.0");
+    config.mtu(1500);
+    config.up();
 
     let tun = tun2::create_as_async(&config)?;
     println!("TUN device created: tun0");
@@ -112,7 +95,7 @@ fn create_net_with_tun(tun: tun2::AsyncDevice) -> Net {
     let net_config = NetConfig::new(
         interface_config,
         IpCidr::new(IpAddress::v4(10, 0, 0, 1), 24),
-        vec![IpAddress::v4(10, 0, 0, 2)],
+        vec![IpAddress::v4(10, 0, 0, 0)],
     );
 
     Net::new(device, net_config)
