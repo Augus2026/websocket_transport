@@ -8,44 +8,14 @@ use tokio_smoltcp::device::ChannelCapture;
 use tokio_smoltcp::{Net, NetConfig};
 use tun2::Configuration as TunConfig;
 
-/// TUN device wrapper for smoltcp
-///
-/// Data flow:
-/// ```
-/// Application (TcpStream)
-///       │
-///       ▼
-/// tokio-smoltcp (Net)
-///       │
-///       ▼
-/// smoltcp (TCP/IP stack)
-///       │
-///       ▼
-/// ChannelCapture
-///   ┌───┴───┐
-///   │       │
-/// recv    send
-/// closure closure
-///   │       │
-///   ▼       ▼
-/// TUN device (virtual network interface)
-///       │
-///       ▼
-/// OS Network Stack (routing/NAT)
-/// ```
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("=== TUN + smoltcp Demo ===\n");
-
-    // Create TUN device
     println!("Creating TUN device...");
     let tun = create_tun_device()?;
 
-    // Create network stack
     println!("Creating network stack...");
     let net = create_net_with_tun(tun);
 
-    // Run TCP client
     run_tcp_client(&net).await?;
 
     println!("\nDone");
@@ -56,29 +26,18 @@ fn create_tun_device() -> Result<tun2::AsyncDevice, Box<dyn std::error::Error>> 
     let mut config = TunConfig::default();
     config.tun_name("tun0");
 
-    // Platform-specific configuration
     #[cfg(target_os = "linux")]
     {
-        // Linux: Configure TUN with IP address
         config.address("10.0.0.1");
         config.netmask("255.255.255.0");
-        config.destination("10.0.0.2"); // Point-to-point destination
+        config.destination("10.0.0.2");
         config.mtu(1500);
-        config.up(); // Bring up the interface
-
-        // Note: You need to enable IP forwarding and NAT:
-        // sysctl -w net.ipv4.ip_forward=1
-        // iptables -t nat -A POSTROUTING -s 10.0.0.0/24 -o eth0 -j MASQUERADE
+        config.up();
     }
 
     #[cfg(target_os = "windows")]
     {
-        // Windows: Wintun driver required
         config.mtu(1500);
-
-        // Note: Windows requires manual route configuration:
-        // route add 10.0.0.0 mask 255.255.255.0 10.0.0.1
-        // Or use: netsh interface ip set address "tun0" static 10.0.0.1 255.255.255.0
     }
 
     #[cfg(target_os = "macos")]
@@ -87,10 +46,6 @@ fn create_tun_device() -> Result<tun2::AsyncDevice, Box<dyn std::error::Error>> 
         config.netmask("255.255.255.0");
         config.destination("10.0.0.2");
         config.mtu(1500);
-
-        // Note: macOS requires manual configuration:
-        // ifconfig tun0 10.0.0.1 10.0.0.2 up
-        // sysctl -w net.inet.ip.forwarding=1
     }
 
     let tun = tun2::create_as_async(&config)?;
@@ -103,13 +58,9 @@ fn create_net_with_tun(tun: tun2::AsyncDevice) -> Net {
     caps.max_transmission_unit = 1500;
     caps.medium = Medium::Ip;
 
-    // Split TUN device for bidirectional I/O
     let (reader, writer) = tokio::io::split(tun);
 
-    // Create ChannelCapture with TUN I/O
     let device = ChannelCapture::new(
-        // Receiver closure: TUN -> smoltcp
-        // Reads packets from TUN and sends to smoltcp network stack
         move |sender: Sender<std::io::Result<Vec<u8>>>| {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
             rt.block_on(async move {
@@ -137,8 +88,6 @@ fn create_net_with_tun(tun: tun2::AsyncDevice) -> Net {
                 }
             });
         },
-        // Sender closure: smoltcp -> TUN
-        // Receives packets from smoltcp and writes to TUN
         move |receiver: Receiver<Vec<u8>>| {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
             rt.block_on(async move {
@@ -159,12 +108,11 @@ fn create_net_with_tun(tun: tun2::AsyncDevice) -> Net {
         caps,
     );
 
-    // Configure smoltcp interface
     let interface_config = Config::new(HardwareAddress::Ip);
     let net_config = NetConfig::new(
         interface_config,
-        IpCidr::new(IpAddress::v4(10, 0, 0, 1), 24), // Local IP
-        vec![IpAddress::v4(10, 0, 0, 2)],            // Gateway (point-to-point peer)
+        IpCidr::new(IpAddress::v4(10, 0, 0, 1), 24),
+        vec![IpAddress::v4(10, 0, 0, 2)],
     );
 
     Net::new(device, net_config)
@@ -173,15 +121,8 @@ fn create_net_with_tun(tun: tun2::AsyncDevice) -> Net {
 async fn run_tcp_client(net: &Net) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== TCP Client ===");
 
-    // Note: The target must be reachable through the TUN interface
-    // For point-to-point TUN, use the peer address (10.0.0.2)
-    // For external addresses, you need proper routing/NAT configuration
-
-    // Option 1: Connect to peer (point-to-point)
-    let remote_addr: SocketAddr = "10.0.0.2:80".parse()?;
-
-    // Option 2: External address (requires routing/NAT)
-    // let remote_addr: SocketAddr = "104.18.26.120:80".parse()?;
+    // let remote_addr: SocketAddr = "10.0.0.2:80".parse()?;
+    let remote_addr: SocketAddr = "104.18.26.120:80".parse()?;
 
     println!("Connecting to {}", remote_addr);
     println!("Note: Target must be reachable through TUN interface\n");
