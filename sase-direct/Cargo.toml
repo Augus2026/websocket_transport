@@ -15,4 +15,5 @@ smoltcp = { version = "0.12", default-features = false, features = [
     "async",
 ] }
 tokio-smoltcp = "0.5"
+futures = "0.3"
 tun2 = { version = "4", features = ["async"] }
