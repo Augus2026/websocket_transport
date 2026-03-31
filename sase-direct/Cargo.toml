@@ -1,0 +1,18 @@
+[package]
+name = "sase-direct"
+version = "1.0.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+smoltcp = { version = "0.12", default-features = false, features = [
+    "std",
+    "log",
+    "medium-ip",
+    "proto-ipv4",
+    "socket-tcp",
+    "socket-udp",
+    "async",
+] }
+tokio-smoltcp = "0.5"
+tun2 = { version = "4", features = ["async"] }

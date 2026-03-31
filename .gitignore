@@ -7,3 +7,5 @@ p2p_sdk/.claude/*
 p2p_sdk/.specify/*
 p2p_sdk/specs/*
 .claude/*
+sase-direct/.claude/*
+sase-direct/.specify/*
