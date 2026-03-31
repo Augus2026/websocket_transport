@@ -1,19 +1,10 @@
 [package]
-name = "sase-direct"
-version = "1.0.0"
+name = "my-project"
+version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
-smoltcp = { version = "0.12", default-features = false, features = [
-    "std",
-    "log",
-    "medium-ip",
-    "proto-ipv4",
-    "socket-tcp",
-    "socket-udp",
-    "async",
-] }
-tokio-smoltcp = "0.5"
-futures = "0.3"
-tun2 = { version = "4", features = ["async"] }
+smoltcp = "0.12.0"
+tokio = { version = "1.50.0", features = ["full"] }
+tokio-smoltcp = "0.5.2"
+tun2 = { version = "4.0.0", features = ["async"] }
