@@ -27,7 +27,6 @@ fn create_tun_device() -> Result<tun2::AsyncDevice, Box<dyn std::error::Error>> 
     config.tun_name("tun0");
     config.address("10.0.0.1");
     config.netmask("255.255.255.0");
-    config.destination("10.0.0.0");
     config.mtu(1500);
     config.up();
 
